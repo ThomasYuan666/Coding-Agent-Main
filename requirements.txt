@@ -1,1 +1,2 @@
-# 第一版使用 Python 标准库，无需安装第三方依赖。
+fastapi
+uvicorn[standard]

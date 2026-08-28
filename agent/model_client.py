@@ -5,7 +5,7 @@ import urllib.error
 from config.settings import API_URL, MODEL, get_api_key
 
 
-def chat(messages: list, tools: list) -> dict:
+def chat(messages: list, tools: list, on_event=None) -> dict:
     body = {
         "model": MODEL,
         "messages": messages,
@@ -25,7 +25,7 @@ def chat(messages: list, tools: list) -> dict:
     )
     try:
         with urllib.request.urlopen(request, timeout=120) as response:
-            return _read_stream(response)
+            return _read_stream(response, on_event)
     except urllib.error.HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(
@@ -42,12 +42,9 @@ def chat(messages: list, tools: list) -> dict:
 
 
 
-def _read_stream(response) -> dict:
+def _read_stream(response, on_event=None) -> dict:
     message = {"role": "assistant", "content": ""}
     tool_calls = {}
-    print("\nAgent：", end="", flush=True)
-    reasoning_started = False
-    reasoning_finished = False
     for raw_line in response:
         line = raw_line.decode("utf-8", errors="replace").strip()
         if not line or not line.startswith("data:"):
@@ -64,16 +61,12 @@ def _read_stream(response) -> dict:
             content = delta.get("content")
             reasoning = delta.get("reasoning_content")
             if reasoning:
-                if not reasoning_started:
-                    print("[思考] ", end="", flush=True)
-                    reasoning_started = True
-                print(reasoning, end="", flush=True)
+                if on_event:
+                    on_event("reasoning", reasoning)
             if content:
-                if reasoning_started and not reasoning_finished:
-                    print("\n", end="", flush=True)
-                    reasoning_finished = True
                 message["content"] += content
-                print(content, end="", flush=True)
+                if on_event:
+                    on_event("content", content)
             for call in delta.get("tool_calls") or []:
                 index = call.get("index", 0)
                 current = tool_calls.setdefault(index, {"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
@@ -83,5 +76,4 @@ def _read_stream(response) -> dict:
                 current["function"]["arguments"] += function.get("arguments") or ""
     if tool_calls:
         message["tool_calls"] = [tool_calls[i] for i in sorted(tool_calls)]
-    print()
     return {"choices": [{"index": 0, "message": message, "finish_reason": "tool_calls" if tool_calls else "stop"}]}

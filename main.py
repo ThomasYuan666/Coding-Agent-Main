@@ -1,8 +1,6 @@
-from agent.loop import run_session
-
+import webbrowser
+import uvicorn
 
 if __name__ == "__main__":
-    try:
-        run_session()
-    except KeyboardInterrupt:
-        print("\n已退出。")
+    webbrowser.open("http://127.0.0.1:8000")
+    uvicorn.run("server.app:app", host="127.0.0.1", port=8000)
