@@ -35,7 +35,7 @@ async def websocket_endpoint(ws: WebSocket):
                 candidate = (CONTAINER / requested.name if not requested.is_absolute() else requested).resolve()
                 if not candidate.is_dir() or CONTAINER.resolve() not in candidate.parents: continue
                 root = str(candidate); manager = ConversationManager(root)
-                await ws.send_json({'type':'root_set','root':root}); await ws.send_json({'type':'files','files':build_tree(root)})
+                await ws.send_json({'type':'root_set','root':root})
                 await ws.send_json({'type':'history','messages':manager.load()})
             elif action == 'files' and root: await ws.send_json({'type':'files','files':build_tree(root)})
             elif action == 'read' and root:
