@@ -1,13 +1,24 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { display: flex; height: 100vh; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
 
-aside { width: 250px; background: #f5f5f5; padding: 15px; border-right: 1px solid #ddd; overflow-y: auto; }
+aside { width: 250px; background: #f5f5f5; padding: 15px; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; }
 aside button { width: 100%; padding: 10px; margin-bottom: 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
 aside button:hover { background: #0056b3; }
 aside h3 { font-size: 14px; margin-bottom: 10px; color: #333; }
-aside ul { list-style: none; }
-aside li { padding: 8px; cursor: pointer; font-size: 13px; border-radius: 3px; margin-bottom: 2px; }
+aside > ul { list-style: none; flex: 1; overflow-y: auto; min-height: 0; }
+aside ul ul { list-style: none; }
+aside li { padding: 8px; cursor: pointer; font-size: 13px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 aside li:hover { background: #e0e0e0; }
+aside li.folder { font-weight: 500; }
+aside li.file { font-weight: normal; }
+
+.recent-panel { padding-top: 15px; border-top: 1px solid #ddd; flex-shrink: 0; max-height: 200px; overflow-y: auto; }
+.recent-panel h4 { font-size: 13px; margin-bottom: 8px; color: #666; font-weight: 600; }
+.recent-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; margin-bottom: 4px; background: #fff; border: 1px solid #e0e0e0; border-radius: 3px; cursor: pointer; font-size: 12px; }
+.recent-item:hover { background: #f9f9f9; border-color: #007bff; }
+.recent-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-item button { background: transparent; border: none; color: #999; cursor: pointer; font-size: 16px; padding: 0 4px; }
+.recent-item button:hover { color: #dc3545; }
 
 main { flex: 1; display: flex; flex-direction: column; }
 #filename { padding: 10px 15px; background: #2d2d2d; color: #fff; font-size: 14px; border-bottom: 1px solid #444; }
@@ -29,13 +40,22 @@ section { width: 400px; display: flex; flex-direction: column; border-left: 1px 
 .msg span { display: block; white-space: pre-wrap; word-wrap: break-word; }
 
 .msg.reasoning { background: #f5f5f5; border: 1px solid #ccc; }
-.msg.reasoning strong { color: #757575; }
+.msg.reasoning strong { color: #757575; cursor: pointer; user-select: none; }
 .msg.reasoning strong::before { content: '💭 '; }
+.msg.reasoning strong::after { content: ' ▼'; font-size: 10px; }
+.msg.reasoning.collapsed strong::after { content: ' ▶'; }
+.msg.reasoning.collapsed span { display: none; }
 
-#chat { display: flex; padding: 15px; background: #fff; border-top: 1px solid #ddd; }
-#input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: none; font-family: inherit; font-size: 14px; }
-#chat button { margin-left: 10px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
-#chat button:hover { background: #218838; }
+#chat { display: flex; gap: 8px; padding: 15px; background: #fff; border-top: 1px solid #ddd; }
+#input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: none; font-family: inherit; font-size: 14px; min-height: 40px; max-height: 120px; }
+#chat button { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; white-space: nowrap; }
+#send { background: #28a745; color: white; }
+#send:hover:not(:disabled) { background: #218838; }
+#send:disabled { background: #6c757d; cursor: not-allowed; }
+#stop { background: #dc3545; color: white; }
+#stop:hover { background: #c82333; }
+#revert { background: #6c757d; color: white; }
+#revert:hover { background: #5a6268; }
 
 .msg button { padding: 5px 12px; margin-left: 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; }
 .msg button[data-ok="1"] { background: #28a745; color: white; }
