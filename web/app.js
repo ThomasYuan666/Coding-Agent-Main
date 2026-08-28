@@ -7,7 +7,6 @@ const messages = document.querySelector('#messages');
 const editor = document.querySelector('#editor');
 const input = document.querySelector('#input');
 let currentRoot = '';
-let reply = null;
 let liveSegment = null;
 
 function renderMarkdown(text) {
@@ -99,15 +98,13 @@ onMessage((data) => {
   if (data.type === 'files') refreshCurrentWorkspace(data.files);
   if (data.type === 'root_set') document.querySelector('#workspace').textContent = `当前工作区：${data.root.split('\\').pop()}`;
   if (data.type === 'file_content') { document.querySelector('#filename').textContent = data.path; editor.value = data.content; editor.dataset.path = data.path; }
-  if (data.type === 'history') { messages.innerHTML = ''; data.messages.filter((m) => m.role !== 'system').forEach((m) => addMessage(m.role === 'user' ? 'user' : 'agent', m.role === 'user' ? '你' : 'Agent', m.content)); }
   if (data.type === 'user') addMessage('user', '你', data.content);
-  if (data.type === 'history') renderHistory(data.messages);
   if (data.type === 'reasoning') appendLiveSegment('reasoning', data.content);
-  if (data.type === 'start') { liveSegment = null; reply = null; }
+  if (data.type === 'start') { liveSegment = null; }
   if (data.type === 'chunk') {
     appendLiveSegment('content', data.content);
   }
-  if (data.type === 'end') { reply = null; liveSegment = null; }
+  if (data.type === 'end') liveSegment = null;
   if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
   if (data.type === 'approval') { const block = addMessage('tool', '需要确认', `${data.reason}\n${data.command}`); block.innerHTML += ' <button data-a="approve">允许</button><button data-a="reject">拒绝</button>'; block.querySelectorAll('button').forEach((button) => { button.onclick = () => send({ action: button.dataset.a }); }); }
 });

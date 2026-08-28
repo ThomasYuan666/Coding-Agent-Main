@@ -2,7 +2,7 @@
  * 文件树渲染模块
  */
 
-import { openFile } from './workspace.js';
+import { send } from './websocket.js';
 
 /**
  * 渲染文件树
@@ -57,7 +57,7 @@ function createTreeNode(item) {
     const span = document.createElement('span');
     span.textContent = `📄 ${item.name}`;
     span.className = 'file';
-    span.onclick = () => openFile(item.path);
+    span.onclick = () => send({ action: 'read', path: item.path });
     li.appendChild(span);
   }
 

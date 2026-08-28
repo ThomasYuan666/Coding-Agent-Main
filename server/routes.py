@@ -8,6 +8,7 @@ from .conversation import ConversationManager
 from .file_ops import build_tree
 from .llm import LLMClient
 from .tools import execute
+from .path_utils import safe_path
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / 'web'
@@ -25,7 +26,8 @@ async def index():
 
 @app.put('/api/file')
 async def save_file(data: dict = Body(...)):
-    root = resolve_root(data['root']); target = (root / data['path']).resolve()
+    root = resolve_root(data['root'])
+    target = Path(safe_path(root, data['path']))
     if root not in target.parents: return {'ok': False, 'error': '路径不在当前工作区内'}
     target.parent.mkdir(parents=True, exist_ok=True); target.write_text(data['content'], encoding='utf-8')
     return {'ok': True}
@@ -84,7 +86,7 @@ async def websocket_endpoint(ws: WebSocket):
             elif action == 'files' and root: await ws.send_json({'type': 'files', 'files': build_tree(root)})
             elif action == 'read' and root:
                 try:
-                    target = (Path(root) / data['path']).resolve()
+                    target = Path(safe_path(root, data['path']))
                     if Path(root) not in target.parents: raise ValueError('路径不在当前工作区内')
                     await ws.send_json({'type': 'file_content', 'path': data['path'], 'content': target.read_text(encoding='utf-8')})
                 except Exception as exc: await ws.send_json({'type': 'error', 'content': str(exc)})
