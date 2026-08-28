@@ -19,6 +19,36 @@ function addMessage(type, label, text = '') {
   return item.querySelector('span');
 }
 
+function renderHistory(history) {
+  messages.innerHTML = '';
+  history.filter((message) => message.role !== 'system').forEach((message) => {
+    if (message.role === 'user') addMessage('user', '你', message.content || '');
+    if (message.reasoning_content) addMessage('reasoning', '思考', message.reasoning_content);
+    if (message.role === 'assistant' && message.content) addMessage('agent', 'Agent', message.content);
+    (message.tool_calls || []).forEach((call) => {
+      const fn = call.function || {};
+      addMessage('tool', `工具：${fn.name || 'unknown'}`, `参数：${fn.arguments || '{}'}`);
+    });
+    if (message.role === 'tool') addMessage('tool', '工具结果', message.content || '');
+  });
+}
+
+function refreshCurrentWorkspace(tree) {
+  if (!currentRoot) return;
+  const name = currentRoot.split('\\').pop();
+  const workspaceItem = [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
+    .find((item) => item.dataset.path === name);
+  if (!workspaceItem) return;
+  const temporary = document.createElement('div');
+  renderFileTree(tree, temporary);
+  const newChildren = temporary.querySelector(':scope > ul');
+  const oldChildren = workspaceItem.querySelector(':scope > ul');
+  if (oldChildren) oldChildren.replaceWith(newChildren);
+  else workspaceItem.appendChild(newChildren);
+  newChildren.style.display = 'block';
+  workspaceItem.classList.add('active', 'expanded');
+}
+
 function selectWorkspace(name) {
   currentRoot = `${ROOT}\\${name}`;
   document.querySelector('#workspace').textContent = `当前工作区：${name}`;
@@ -35,10 +65,13 @@ function selectWorkspace(name) {
 
 onMessage((data) => {
   if (data.type === 'container') renderFileTree(data.files, files);
+  if (data.type === 'files') refreshCurrentWorkspace(data.files);
   if (data.type === 'root_set') document.querySelector('#workspace').textContent = `当前工作区：${data.root.split('\\').pop()}`;
   if (data.type === 'file_content') { document.querySelector('#filename').textContent = data.path; editor.value = data.content; editor.dataset.path = data.path; }
   if (data.type === 'history') { messages.innerHTML = ''; data.messages.filter((m) => m.role !== 'system').forEach((m) => addMessage(m.role === 'user' ? 'user' : 'agent', m.role === 'user' ? '你' : 'Agent', m.content)); }
   if (data.type === 'user') addMessage('user', '你', data.content);
+  if (data.type === 'history') renderHistory(data.messages);
+  if (data.type === 'reasoning') addMessage('reasoning', 'Thinking', data.content);
   if (data.type === 'start') reply = addMessage('agent', 'Agent');
   if (data.type === 'chunk' && reply) { reply.textContent += data.content; messages.scrollTop = messages.scrollHeight; }
   if (data.type === 'end') reply = null;

@@ -10,9 +10,15 @@ def _safe(root, relative):
     return target
 
 
-def execute(action, root, approved=False):
-    tool = action.get('tool')
-    if tool in {'write_file', 'delete_file', 'execute_bash'} and not approved:
+def execute(name, arguments=None, root=None, approved=False):
+    if isinstance(name, dict):
+        action = name
+        root = arguments
+        arguments = action
+        name = action.get('tool', 'execute_bash')
+    tool = 'run_command' if name == 'execute_bash' else name
+    action = arguments or {}
+    if tool in {'write_file', 'delete_file', 'run_command'} and not approved:
         return {'needs_approval': True, 'command': action.get('command') or action.get('path', ''), 'reason': '此操作可能修改工作区'}
     try:
         if tool == 'read_file':
@@ -25,7 +31,7 @@ def execute(action, root, approved=False):
         if tool == 'delete_file':
             os.remove(_safe(root, action['path']))
             return {'result': f"已删除 {action['path']}"}
-        if tool == 'execute_bash':
+        if tool == 'run_command':
             result = subprocess.run(action['command'], cwd=root, shell=True, capture_output=True, text=True, timeout=120)
             return {'result': f'退出码：{result.returncode}\n{result.stdout}{result.stderr}'.strip()}
         return {'result': f'未知工具：{tool}'}
