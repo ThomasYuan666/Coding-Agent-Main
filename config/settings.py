@@ -4,10 +4,6 @@ from pathlib import Path
 
 # settings.py -> config -> Coding-Agent-Main
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE = PROJECT_ROOT.parent / "workspace"
-API_URL = "https://api.deepseek.com/chat/completions"
-MODEL = "deepseek-v4-flash"
-MAX_TURNS = 20
 
 
 def _load_dotenv() -> None:
