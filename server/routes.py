@@ -33,14 +33,19 @@ async def save_file(data: dict = Body(...)):
 async def agent_turn(ws, client, manager, root):
     print(f'[agent] turn root={root}')
     try:
-        response = client.chat(manager.load())
+        response = None
+        for event in client.stream_chat(manager.load()):
+            if event['type'] == 'reasoning':
+                await ws.send_json({'type': 'reasoning', 'content': event['content']})
+            elif event['type'] == 'content':
+                await ws.send_json({'type': 'chunk', 'content': event['content']})
+            elif event['type'] == 'done':
+                response = event['result']
     except Exception as exc:
         print(f'[agent] model error: {type(exc).__name__}: {exc}')
         await ws.send_json({'type': 'error', 'content': f'模型调用失败：{exc}'})
         await ws.send_json({'type': 'end'})
         return None
-    if response.get('reasoning_content'): await ws.send_json({'type': 'reasoning', 'content': response['reasoning_content']})
-    if response.get('content'): await ws.send_json({'type': 'chunk', 'content': response['content']})
     calls = response.get('tool_calls', [])
     if not calls:
         manager.add({'role': 'assistant', 'content': response.get('content', ''), 'reasoning_content': response.get('reasoning_content', '')}); await ws.send_json({'type': 'end'}); return None

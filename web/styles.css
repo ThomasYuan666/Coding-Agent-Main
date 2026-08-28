@@ -44,6 +44,12 @@ section { width: 400px; display: flex; flex-direction: column; border-left: 1px 
 .revert-btn:hover { background: #f0f0f0; border-color: #999; }
 
 .msg span { display: block; white-space: pre-wrap; word-wrap: break-word; }
+.msg.agent span { white-space: normal; }
+.msg.agent p { margin: 0 0 6px; }
+.msg.agent p:last-child { margin-bottom: 0; }
+.msg.agent pre { margin: 10px 0; padding: 10px 12px; overflow-x: auto; background: #f6f8fa; border: 1px solid #d9dee3; border-radius: 4px; }
+.msg.agent code { font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+.msg.agent :not(pre) > code { padding: 2px 4px; background: #f0f2f4; border-radius: 3px; }
 
 .diff-content { margin-top: 8px; padding: 10px; background: #fff; border: 1px solid #e1e4e8; border-radius: 4px; overflow-x: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; line-height: 1.5; }
 

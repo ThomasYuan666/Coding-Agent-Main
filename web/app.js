@@ -8,15 +8,42 @@ const editor = document.querySelector('#editor');
 const input = document.querySelector('#input');
 let currentRoot = '';
 let reply = null;
+let liveSegment = null;
 
-function addMessage(type, label, text = '') {
+function renderMarkdown(text) {
+  if (!window.marked) return text;
+  const html = window.marked.parse(text, { breaks: true });
+  const safe = window.DOMPurify ? window.DOMPurify.sanitize(html) : html;
+  if (!window.hljs) return safe;
+  const holder = document.createElement('div');
+  holder.innerHTML = safe;
+  holder.querySelectorAll('pre code').forEach((block) => window.hljs.highlightElement(block));
+  return holder.innerHTML;
+}
+
+function addMessage(type, label, text = '', markdown = false) {
   const item = document.createElement('div');
   item.className = `msg ${type}`;
   item.innerHTML = `<strong>${label}</strong><span></span>`;
-  item.querySelector('span').textContent = text;
+  const content = item.querySelector('span');
+  content.dataset.raw = text;
+  if (markdown) content.innerHTML = renderMarkdown(text);
+  else content.textContent = text;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
   return item.querySelector('span');
+}
+
+function appendLiveSegment(type, text) {
+  if (!liveSegment || liveSegment.dataset.type !== type) {
+    const span = addMessage(type === 'content' ? 'agent' : 'reasoning', type === 'reasoning' ? 'Thinking' : 'Agent', '', type === 'content');
+    liveSegment = span;
+    liveSegment.dataset.type = type;
+  }
+  liveSegment.dataset.raw = (liveSegment.dataset.raw || '') + text;
+  liveSegment.innerHTML = type === 'content' ? renderMarkdown(liveSegment.dataset.raw) : '';
+  if (type === 'reasoning') liveSegment.textContent = liveSegment.dataset.raw;
+  messages.scrollTop = messages.scrollHeight;
 }
 
 function renderHistory(history) {
@@ -24,7 +51,7 @@ function renderHistory(history) {
   history.filter((message) => message.role !== 'system').forEach((message) => {
     if (message.role === 'user') addMessage('user', '你', message.content || '');
     if (message.reasoning_content) addMessage('reasoning', '思考', message.reasoning_content);
-    if (message.role === 'assistant' && message.content) addMessage('agent', 'Agent', message.content);
+    if (message.role === 'assistant' && message.content) addMessage('agent', 'Agent', message.content, true);
     (message.tool_calls || []).forEach((call) => {
       const fn = call.function || {};
       addMessage('tool', `工具：${fn.name || 'unknown'}`, `参数：${fn.arguments || '{}'}`);
@@ -64,6 +91,10 @@ function selectWorkspace(name) {
 }
 
 onMessage((data) => {
+  if (data.type === 'history') {
+    renderHistory(data.messages);
+    return;
+  }
   if (data.type === 'container') renderFileTree(data.files, files);
   if (data.type === 'files') refreshCurrentWorkspace(data.files);
   if (data.type === 'root_set') document.querySelector('#workspace').textContent = `当前工作区：${data.root.split('\\').pop()}`;
@@ -71,10 +102,12 @@ onMessage((data) => {
   if (data.type === 'history') { messages.innerHTML = ''; data.messages.filter((m) => m.role !== 'system').forEach((m) => addMessage(m.role === 'user' ? 'user' : 'agent', m.role === 'user' ? '你' : 'Agent', m.content)); }
   if (data.type === 'user') addMessage('user', '你', data.content);
   if (data.type === 'history') renderHistory(data.messages);
-  if (data.type === 'reasoning') addMessage('reasoning', 'Thinking', data.content);
-  if (data.type === 'start') reply = addMessage('agent', 'Agent');
-  if (data.type === 'chunk' && reply) { reply.textContent += data.content; messages.scrollTop = messages.scrollHeight; }
-  if (data.type === 'end') reply = null;
+  if (data.type === 'reasoning') appendLiveSegment('reasoning', data.content);
+  if (data.type === 'start') { liveSegment = null; reply = null; }
+  if (data.type === 'chunk') {
+    appendLiveSegment('content', data.content);
+  }
+  if (data.type === 'end') { reply = null; liveSegment = null; }
   if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
   if (data.type === 'approval') { const block = addMessage('tool', '需要确认', `${data.reason}\n${data.command}`); block.innerHTML += ' <button data-a="approve">允许</button><button data-a="reject">拒绝</button>'; block.querySelectorAll('button').forEach((button) => { button.onclick = () => send({ action: button.dataset.a }); }); }
 });
@@ -97,3 +130,8 @@ files.addEventListener('click', (event) => {
 }, true);
 editor.onkeydown = (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); fetch('/api/file', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ root: currentRoot, path: editor.dataset.path, content: editor.value }) }); } };
 document.querySelector('#chat').onsubmit = (event) => { event.preventDefault(); const text = input.value.trim(); if (text && currentRoot) { send({ action: 'message', content: text }); input.value = ''; } };
+messages.addEventListener('click', (event) => {
+  if (event.target.tagName === 'STRONG' && event.target.parentElement.classList.contains('reasoning')) {
+    event.target.parentElement.classList.toggle('collapsed');
+  }
+});
