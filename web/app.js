@@ -48,6 +48,19 @@ onMessage((data) => {
 
 const connection = connect();
 connection.addEventListener('open', () => send({ action: 'set_container' }), { once: true });
-files.addEventListener('click', (event) => { const item = event.target.closest('li'); if (item?.dataset.type === 'folder' && item.parentElement === files.querySelector('ul')) selectWorkspace(item.dataset.path); }, true);
+files.addEventListener('click', (event) => {
+  const item = event.target.closest('li');
+  if (!item) return;
+  if (item.dataset.type === 'folder' && item.parentElement === files.querySelector('ul')) {
+    selectWorkspace(item.dataset.path);
+    return;
+  }
+  if (item.dataset.type === 'file' && currentRoot) {
+    event.stopImmediatePropagation();
+    const prefix = `${currentRoot.split('\\').pop()}\\`;
+    const path = item.dataset.path.startsWith(prefix) ? item.dataset.path.slice(prefix.length) : item.dataset.path;
+    send({ action: 'read', path });
+  }
+}, true);
 editor.onkeydown = (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); fetch('/api/file', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ root: currentRoot, path: editor.dataset.path, content: editor.value }) }); } };
 document.querySelector('#chat').onsubmit = (event) => { event.preventDefault(); const text = input.value.trim(); if (text && currentRoot) { send({ action: 'message', content: text }); input.value = ''; } };

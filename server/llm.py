@@ -9,7 +9,8 @@ class LLMClient:
         self.url = 'https://api.deepseek.com/chat/completions'
 
     def chat(self, messages):
-        body = {'model': 'deepseek-v4-flash', 'messages': messages, 'stream': True}
+        system = {'role': 'system', 'content': '你是编程助手。需要操作文件时，严格只输出一行 JSON：{"tool":"read_file","path":"..."}、{"tool":"write_file","path":"...","content":"..."}、{"tool":"delete_file","path":"..."} 或 {"tool":"execute_bash","command":"..."}。不需要工具时正常回答。'}
+        body = {'model': 'deepseek-v4-flash', 'messages': [system] + messages, 'stream': True}
         req = urllib.request.Request(self.url, json.dumps(body).encode(), {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.key}'})
         with urllib.request.urlopen(req, timeout=120) as response:
             for line in response:
