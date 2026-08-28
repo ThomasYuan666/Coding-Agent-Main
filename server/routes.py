@@ -34,7 +34,7 @@ async def agent_turn(ws, client, manager, root):
     print(f'[agent] turn root={root}')
     try:
         response = None
-        for event in client.stream_chat(manager.load()):
+        async for event in client.stream_chat(manager.load()):
             if event['type'] == 'reasoning':
                 await ws.send_json({'type': 'reasoning', 'content': event['content']})
             elif event['type'] == 'content':
@@ -42,7 +42,7 @@ async def agent_turn(ws, client, manager, root):
             elif event['type'] == 'done':
                 response = event['result']
     except Exception as exc:
-        print(f'[agent] model error: {type(exc).__name__}: {exc}')
+        print(f'[agent] model error: {type(exc).__name__}: {exc!r}')
         await ws.send_json({'type': 'error', 'content': f'模型调用失败：{exc}'})
         await ws.send_json({'type': 'end'})
         return None

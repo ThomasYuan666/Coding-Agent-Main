@@ -1,5 +1,5 @@
 import json
-import urllib.request
+import httpx
 
 TOOLS = [
     {'type': 'function', 'function': {'name': 'read_file', 'description': '读取当前工作区内的文本文件', 'parameters': {'type': 'object', 'properties': {'path': {'type': 'string'}}, 'required': ['path']}}},
@@ -13,31 +13,33 @@ class LLMClient:
         self.key = key
         self.url = 'https://api.deepseek.com/chat/completions'
 
-    def stream_chat(self, messages):
+    async def stream_chat(self, messages):
         body = {'model': 'deepseek-v4-flash', 'messages': messages, 'tools': TOOLS, 'stream': True}
-        request = urllib.request.Request(self.url, json.dumps(body).encode(), {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.key}'})
+        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.key}'}
         content = ''
         reasoning = ''
         calls = {}
         print(f'[llm] request messages={len(messages)}')
-        with urllib.request.urlopen(request, timeout=120) as response:
-            for line in response:
-                text = line.decode('utf-8', errors='replace').strip()
-                if text.startswith('data:') and text[5:].strip() != '[DONE]':
-                    delta = json.loads(text[5:])['choices'][0]['delta']
-                    content_piece = delta.get('content') or ''
-                    reasoning_piece = delta.get('reasoning_content') or ''
-                    content += content_piece
-                    reasoning += reasoning_piece
-                    if reasoning_piece: yield {'type': 'reasoning', 'content': reasoning_piece}
-                    if content_piece: yield {'type': 'content', 'content': content_piece}
-                    for part in delta.get('tool_calls') or []:
-                        index = part.get('index', 0)
-                        call = calls.setdefault(index, {'id': '', 'type': 'function', 'function': {'name': '', 'arguments': ''}})
-                        call['id'] = call['id'] or part.get('id', '')
-                        fn = part.get('function') or {}
-                        call['function']['name'] += fn.get('name') or ''
-                        call['function']['arguments'] += fn.get('arguments') or ''
+        async with httpx.AsyncClient(timeout=120, trust_env=False) as client:
+            async with client.stream('POST', self.url, json=body, headers=headers) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    text = line.strip()
+                    if text.startswith('data:') and text[5:].strip() != '[DONE]':
+                        delta = json.loads(text[5:])['choices'][0]['delta']
+                        content_piece = delta.get('content') or ''
+                        reasoning_piece = delta.get('reasoning_content') or ''
+                        content += content_piece
+                        reasoning += reasoning_piece
+                        if reasoning_piece: yield {'type': 'reasoning', 'content': reasoning_piece}
+                        if content_piece: yield {'type': 'content', 'content': content_piece}
+                        for part in delta.get('tool_calls') or []:
+                            index = part.get('index', 0)
+                            call = calls.setdefault(index, {'id': '', 'type': 'function', 'function': {'name': '', 'arguments': ''}})
+                            call['id'] = call['id'] or part.get('id', '')
+                            fn = part.get('function') or {}
+                            call['function']['name'] += fn.get('name') or ''
+                            call['function']['arguments'] += fn.get('arguments') or ''
         result = {'content': content, 'reasoning_content': reasoning, 'tool_calls': list(calls.values())}
         print(f'[llm] response content={len(content)} reasoning={len(reasoning)} tools={[c["function"]["name"] for c in result["tool_calls"]]}')
         yield {'type': 'done', 'result': result}
