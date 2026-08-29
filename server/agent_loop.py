@@ -3,6 +3,7 @@ import json
 from .rollback import RollbackManager
 from .tools import apply_write, execute, prepare_write
 from .context_manager import ContextManager, format_compression_prompt
+from config.settings import CONTEXT_LIMIT
 
 
 async def agent_turn(websocket, client, manager, root, turn_id, model):
@@ -29,7 +30,11 @@ async def agent_turn(websocket, client, manager, root, turn_id, model):
             elif event["type"] == "usage":
                 usage = event["usage"]
                 context.record_usage(usage)
-                await websocket.send_json({"type": "context_usage", "usage": event["usage"]})
+                await websocket.send_json({
+                    "type": "context_usage",
+                    "usage": event["usage"],
+                    "limit": CONTEXT_LIMIT,
+                })
         if not usage:
             raise RuntimeError("模型响应未返回 usage")
     except Exception as exc:

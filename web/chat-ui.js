@@ -133,8 +133,9 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, contex
     }
     if (data.type === 'context_usage' && contextStatus) {
       const tokens = data.usage?.prompt_tokens;
-      if (Number.isFinite(tokens)) {
-        const percent = Math.min(100, Math.round(tokens / 10000));
+      const limit = data.limit;
+      if (Number.isFinite(tokens) && Number.isFinite(limit) && limit > 0) {
+        const percent = Math.min(100, Math.round(tokens / limit * 100));
         contextStatus.textContent = `上下文 ${tokens.toLocaleString()} tokens`;
         if (contextRing) {
           contextRing.style.setProperty('--usage', `${percent * 3.6}deg`);

@@ -11,7 +11,7 @@ from .llm import LLMClient
 from .path_utils import CONTAINER, resolve_root, safe_path
 from .rollback import RollbackManager
 from .context_manager import ContextManager, format_compression_prompt
-from config.settings import AVAILABLE_MODELS, DEFAULT_MODEL, MODEL_VISION, get_api_key
+from config.settings import AVAILABLE_MODELS, CONTEXT_LIMIT, DEFAULT_MODEL, MODEL_VISION, get_api_key
 
 
 def contains_image(messages):
@@ -181,6 +181,13 @@ async def _send_history(websocket, root, manager):
         'messages': manager.load(),
         'rollback_turn_ids': _rollback_turn_ids(root),
     })
+    usage = ContextManager(root).last_usage()
+    if usage:
+        await websocket.send_json({
+            'type': 'context_usage',
+            'usage': {'prompt_tokens': usage},
+            'limit': CONTEXT_LIMIT,
+        })
 
 
 async def _stop_turn(websocket, manager, pending, task):
