@@ -23,6 +23,7 @@ const chatUI = createChatUI({
   messages,
   input: document.querySelector('#input'),
   modelSelect: document.querySelector('#model-select'),
+  reasoningSelect: document.querySelector('#reasoning-select'),
   compactButton: document.querySelector('#compact-context'),
   imageStatus: document.querySelector('#image-status'),
   contextStatus: document.querySelector('#context-status'),

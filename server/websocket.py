@@ -11,7 +11,7 @@ from .llm import LLMClient
 from .path_utils import CONTAINER, resolve_root, safe_path
 from .rollback import RollbackManager
 from .context_manager import ContextManager
-from config.settings import AVAILABLE_MODELS, CONTEXT_LIMIT, DEFAULT_MODEL, MODEL_VISION, get_api_key
+from config.settings import AVAILABLE_MODELS, CONTEXT_LIMIT, DEFAULT_MODEL, DEFAULT_REASONING, MODEL_VISION, REASONING_LEVELS, get_api_key
 
 
 def contains_image(messages):
@@ -67,6 +67,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             root,
                             data['turn_id'],
                             data.get('model', DEFAULT_MODEL),
+                            data.get('reasoning_effort', DEFAULT_REASONING),
                         )
                     )
             elif action in {'approve', 'reject'} and pending and root and manager and not agent_task:
@@ -103,8 +104,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def _start_turn(websocket, manager, root, data):
     model = data.get('model', DEFAULT_MODEL)
+    reasoning_effort = data.get('reasoning_effort', DEFAULT_REASONING)
     if model not in AVAILABLE_MODELS:
         await websocket.send_json({'type': 'error', 'content': '不支持的模型'})
+        await websocket.send_json({'type': 'end'})
+        return False
+    if reasoning_effort not in REASONING_LEVELS:
+        await websocket.send_json({'type': 'error', 'content': '不支持的推理深度'})
         await websocket.send_json({'type': 'end'})
         return False
     messages = manager.load()

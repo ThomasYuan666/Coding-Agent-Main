@@ -1,12 +1,11 @@
 import json
-
 from .rollback import RollbackManager
 from .tools import apply_write, execute, prepare_write
 from .context_manager import ContextManager
 from config.settings import CONTEXT_LIMIT
 
 
-async def agent_turn(websocket, client, manager, root, turn_id, model):
+async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning_effort):
     print(f"[agent] turn root={root}")
     try:
         response = None
@@ -17,7 +16,7 @@ async def agent_turn(websocket, client, manager, root, turn_id, model):
             await websocket.send_json({"type": "context_status", "status": "compacting"})
             await context.compact(history, client)
             await websocket.send_json({"type": "context_status", "status": "ready"})
-        async for event in client.stream_chat(context.build(history), model):
+        async for event in client.stream_chat(context.build(history), model, reasoning_effort=reasoning_effort):
             if event["type"] == "reasoning":
                 await websocket.send_json({"type": "reasoning", "content": event["content"]})
             elif event["type"] == "content":
@@ -87,10 +86,10 @@ async def agent_turn(websocket, client, manager, root, turn_id, model):
             await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})
 
     if pending_items:
-        pending = {"items": pending_items, "index": 0, "turn_id": turn_id, "model": model}
+        pending = {"items": pending_items, "index": 0, "turn_id": turn_id, "model": model, "reasoning_effort": reasoning_effort}
         await _show_pending(websocket, root, pending_items[0])
         return pending
-    return await agent_turn(websocket, client, manager, root, turn_id, model)
+    return await agent_turn(websocket, client, manager, root, turn_id, model, reasoning_effort)
 
 
 async def resolve_approval(websocket, client, manager, root, pending, approved):
@@ -113,6 +112,7 @@ async def resolve_approval(websocket, client, manager, root, pending, approved):
         root,
         pending["turn_id"],
         pending["model"],
+        pending["reasoning_effort"],
     )
 
 

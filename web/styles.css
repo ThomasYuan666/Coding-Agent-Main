@@ -31,9 +31,9 @@ main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; over
 .diff-line.added { color: #146c2e; background: #e8f5e9; }
 .diff-line.removed { color: #a61b1b; background: #ffebee; }
 
-section { width: 520px; flex: 0 0 520px; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid #ddd; background: #fafafa; }
+section { width: 600px; flex: 0 0 600px; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid #ddd; background: #fafafa; }
 #chat-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 15px; border-bottom: 1px solid #ddd; background: #fff; }
-#model-select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+#model-select, #reasoning-select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
 #compact-context { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px; }
 #compact-context:disabled { color: #999; cursor: not-allowed; }
 #image-status { color: #666; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

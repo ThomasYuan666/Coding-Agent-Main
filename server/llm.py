@@ -14,9 +14,12 @@ class LLMClient:
         self.key = key
         self.url = 'https://api.deepseek.com/chat/completions'
 
-    async def stream_chat(self, messages, model=DEFAULT_MODEL, use_tools=True):
+    async def stream_chat(self, messages, model=DEFAULT_MODEL, use_tools=True, reasoning_effort='low'):
         body = {'model': model, 'messages': _api_messages(messages), 'stream': True,
                 'stream_options': {'include_usage': True}}
+        body['thinking'] = {'type': 'disabled' if reasoning_effort == 'off' else 'enabled'}
+        if reasoning_effort != 'off':
+            body['reasoning_effort'] = reasoning_effort
         if use_tools:
             body['tools'] = TOOLS
         headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.key}'}
@@ -59,7 +62,7 @@ class LLMClient:
     async def summarize(self, prompt, model=DEFAULT_MODEL):
         content = ''
         usage = None
-        async for event in self.stream_chat([{'role': 'user', 'content': prompt}], model, use_tools=False):
+        async for event in self.stream_chat([{'role': 'user', 'content': prompt}], model, use_tools=False, reasoning_effort='off'):
             if event['type'] == 'content':
                 content += event['content']
             elif event['type'] == 'usage':
@@ -77,7 +80,7 @@ class LLMClient:
     async def _text_request(self, messages, model):
         content = ''
         usage = None
-        async for event in self.stream_chat(messages, model, use_tools=False):
+        async for event in self.stream_chat(messages, model, use_tools=False, reasoning_effort='off'):
             if event['type'] == 'content':
                 content += event['content']
             elif event['type'] == 'usage':

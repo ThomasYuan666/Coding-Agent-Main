@@ -1,4 +1,4 @@
-export function createChatUI({ messages, input, modelSelect, imageStatus, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
+export function createChatUI({ messages, input, modelSelect, reasoningSelect, imageStatus, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
   let liveSegment = null;
   let pendingImage = null;
   let busy = false;
@@ -242,7 +242,7 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, contex
     const content = pendingImage
       ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: pendingImage, detail: 'auto' } }]
       : text;
-    send({ action: 'message', content, model: modelSelect.value });
+    send({ action: 'message', content, model: modelSelect.value, reasoning_effort: reasoningSelect.value });
     input.value = '';
     pendingImage = null;
     imageStatus.textContent = '';
