@@ -37,7 +37,10 @@
         <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
         <option value="deepseek-v4-flash-vision-exp">DeepSeek V4 Flash Vision</option>
       </select>
+      <button id="compact-context" type="button">压缩上下文</button>
       <span id="image-status"></span>
+      <span id="context-ring" title="上下文用量"><span>0%</span></span>
+      <span id="context-status" aria-live="polite"></span>
     </div>
     <div id="messages"></div>
     <form id="chat">

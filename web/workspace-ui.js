@@ -6,9 +6,7 @@ export function createWorkspaceUI({ files, title, messages, send }) {
 
   function refresh(tree) {
     if (!currentRoot) return;
-    const name = currentRoot.split('\\').pop();
-    const item = [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
-      .find((node) => node.dataset.path === name);
+    const item = findCurrentItem();
     if (!item) return;
     const temporary = document.createElement('div');
     renderFileTree(tree, temporary);
@@ -20,16 +18,27 @@ export function createWorkspaceUI({ files, title, messages, send }) {
     item.classList.add('active', 'expanded');
   }
 
-  function select(name) {
-    currentRoot = `${rootName}\\${name}`;
-    title.textContent = `当前工作区：${name}`;
+  function findCurrentItem() {
+    const name = currentRoot.split('\\').pop();
+    return [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
+      .find((node) => node.dataset.path === name);
+  }
+
+  function restoreSelection() {
+    const current = findCurrentItem();
     files.querySelectorAll(':scope > ul > li[data-type="folder"]').forEach((item) => {
-      const selected = item.dataset.path === name;
+      const selected = item === current;
       item.classList.toggle('active', selected);
       item.classList.toggle('expanded', selected);
       const children = item.querySelector(':scope > ul');
       if (children) children.style.display = selected ? 'block' : 'none';
     });
+  }
+
+  function select(name) {
+    currentRoot = `${rootName}\\${name}`;
+    title.textContent = `当前工作区：${name}`;
+    restoreSelection();
     messages.innerHTML = '';
     send({ action: 'set_root', root: currentRoot });
   }
@@ -53,7 +62,10 @@ export function createWorkspaceUI({ files, title, messages, send }) {
   }, true);
 
   return {
-    renderContainer: (tree) => renderFileTree(tree, files),
+    renderContainer: (tree) => {
+      renderFileTree(tree, files);
+      restoreSelection();
+    },
     refresh,
     getRoot: () => currentRoot
   };

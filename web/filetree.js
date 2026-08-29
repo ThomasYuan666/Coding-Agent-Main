@@ -1,62 +1,31 @@
-/**
- * 文件树渲染模块
- */
-
-/**
- * 渲染文件树
- * @param {Array} files - 文件树数据
- * @param {HTMLElement} container - 容器元素
- */
-export function renderFileTree(files, container) {
+export function renderFileTree(items, container) {
   container.innerHTML = '';
-  const ul = document.createElement('ul');
-  files.forEach(item => {
-    ul.appendChild(createTreeNode(item));
-  });
-  container.appendChild(ul);
+  const list = document.createElement('ul');
+  items.forEach((item) => list.appendChild(createTreeNode(item)));
+  container.appendChild(list);
 }
 
-/**
- * 创建树节点
- * @param {Object} item - 文件或文件夹对象
- * @returns {HTMLElement} 列表项元素
- */
 function createTreeNode(item) {
-  const li = document.createElement('li');
-  li.dataset.path = item.path;
-  li.dataset.type = item.type;
+  const node = document.createElement('li');
+  node.dataset.path = item.path;
+  node.dataset.type = item.type;
 
-  if (item.type === 'folder') {
-    // 文件夹
-    const span = document.createElement('span');
-    span.textContent = `📁 ${item.name}`;
-    span.className = 'folder';
-    li.appendChild(span);
+  const label = document.createElement('span');
+  label.className = item.type;
+  label.textContent = `${item.type === 'folder' ? '📁' : '📄'} ${item.name}`;
+  node.appendChild(label);
 
-    // 子节点容器
-    if (item.children && item.children.length > 0) {
-      const childUl = document.createElement('ul');
-      childUl.style.display = 'none'; // 默认折叠
-      item.children.forEach(child => {
-        childUl.appendChild(createTreeNode(child));
-      });
-      li.appendChild(childUl);
-
-      // 点击展开/折叠
-      span.onclick = (e) => {
-        e.stopPropagation();
-        const isExpanded = childUl.style.display !== 'none';
-        childUl.style.display = isExpanded ? 'none' : 'block';
-        span.textContent = `${isExpanded ? '📁' : '📂'} ${item.name}`;
-      };
-    }
-  } else {
-    // 文件
-    const span = document.createElement('span');
-    span.textContent = `📄 ${item.name}`;
-    span.className = 'file';
-    li.appendChild(span);
+  if (item.type === 'folder' && item.children?.length) {
+    const children = document.createElement('ul');
+    children.style.display = 'none';
+    item.children.forEach((child) => children.appendChild(createTreeNode(child)));
+    node.appendChild(children);
+    label.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const expanded = children.style.display !== 'none';
+      children.style.display = expanded ? 'none' : 'block';
+      label.textContent = `${expanded ? '📁' : '📂'} ${item.name}`;
+    });
   }
-
-  return li;
+  return node;
 }

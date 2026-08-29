@@ -1,7 +1,15 @@
-export function createChatUI({ messages, input, modelSelect, imageStatus, form, sendButton, getRoot, send }) {
+export function createChatUI({ messages, input, modelSelect, imageStatus, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
   let liveSegment = null;
   let pendingImage = null;
   let busy = false;
+
+  if (compactButton) {
+    compactButton.onclick = () => {
+      if (!getRoot() || busy) return;
+      compactButton.disabled = true;
+      send({ action: 'compact' });
+    };
+  }
 
   function addMessage(type, label, text = '', markdown = false, turnId = '', canRollback = false) {
     const item = document.createElement('div');
@@ -123,6 +131,21 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
       renderHistory(data.messages, data.rollback_turn_ids);
       return;
     }
+    if (data.type === 'context_usage' && contextStatus) {
+      const tokens = data.usage?.prompt_tokens;
+      if (Number.isFinite(tokens)) {
+        const percent = Math.min(100, Math.round(tokens / 10000));
+        contextStatus.textContent = `上下文 ${tokens.toLocaleString()} tokens`;
+        if (contextRing) {
+          contextRing.style.setProperty('--usage', `${percent * 3.6}deg`);
+          contextRing.querySelector('span').textContent = `${percent}%`;
+        }
+      }
+    }
+    if (data.type === 'context_status' && contextStatus) {
+      contextStatus.textContent = data.status === 'compacting' ? '正在压缩上下文...' : '上下文已更新';
+      if (compactButton) compactButton.disabled = data.status === 'compacting';
+    }
     if (data.type === 'rollback_state') updateRollbackButtons(data.turn_ids);
     if (data.type === 'user' && data.turn_id) addMessage('user', '你', data.content, false, data.turn_id, true);
     if (data.type === 'reasoning') appendLiveSegment('reasoning', data.content);
@@ -134,7 +157,10 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
       liveSegment = null;
       setBusy(false);
     }
-    if (data.type === 'error') addMessage('tool', '错误', data.content);
+    if (data.type === 'error') {
+      addMessage('tool', '错误', data.content);
+      if (compactButton) compactButton.disabled = false;
+    }
     if (data.type === 'tool') {
       collapseThinking();
       liveSegment = null;

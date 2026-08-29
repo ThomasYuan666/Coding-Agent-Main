@@ -2,19 +2,36 @@ import json
 
 from .rollback import RollbackManager
 from .tools import apply_write, execute, prepare_write
+from .context_manager import ContextManager, format_compression_prompt
 
 
 async def agent_turn(websocket, client, manager, root, turn_id, model):
     print(f"[agent] turn root={root}")
     try:
         response = None
-        async for event in client.stream_chat(manager.load(), model):
+        usage = None
+        context = ContextManager(root)
+        history = manager.load()
+        if context.needs_compaction(context.last_usage()):
+            summary, new_messages, covered = context.compression_source(history)
+            if new_messages:
+                await websocket.send_json({"type": "context_status", "status": "compacting"})
+                new_summary = await client.summarize(format_compression_prompt(summary, new_messages))
+                context.save_summary(new_summary, covered)
+                await websocket.send_json({"type": "context_status", "status": "ready"})
+        async for event in client.stream_chat(context.build(history), model):
             if event["type"] == "reasoning":
                 await websocket.send_json({"type": "reasoning", "content": event["content"]})
             elif event["type"] == "content":
                 await websocket.send_json({"type": "chunk", "content": event["content"]})
             elif event["type"] == "done":
                 response = event["result"]
+            elif event["type"] == "usage":
+                usage = event["usage"]
+                context.record_usage(usage)
+                await websocket.send_json({"type": "context_usage", "usage": event["usage"]})
+        if not usage:
+            raise RuntimeError("模型响应未返回 usage")
     except Exception as exc:
         print(f"[agent] model error: {type(exc).__name__}: {exc!r}")
         await websocket.send_json({"type": "error", "content": f"模型调用失败：{exc}"})

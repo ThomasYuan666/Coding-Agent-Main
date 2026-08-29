@@ -14,8 +14,11 @@ class LLMClient:
         self.key = key
         self.url = 'https://api.deepseek.com/chat/completions'
 
-    async def stream_chat(self, messages, model=DEFAULT_MODEL):
-        body = {'model': model, 'messages': _api_messages(messages), 'tools': TOOLS, 'stream': True}
+    async def stream_chat(self, messages, model=DEFAULT_MODEL, use_tools=True):
+        body = {'model': model, 'messages': _api_messages(messages), 'stream': True,
+                'stream_options': {'include_usage': True}}
+        if use_tools:
+            body['tools'] = TOOLS
         headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.key}'}
         content = ''
         reasoning = ''
@@ -30,7 +33,12 @@ class LLMClient:
                 async for line in response.aiter_lines():
                     text = line.strip()
                     if text.startswith('data:') and text[5:].strip() != '[DONE]':
-                        delta = json.loads(text[5:])['choices'][0]['delta']
+                        chunk = json.loads(text[5:])
+                        if chunk.get('usage'):
+                            yield {'type': 'usage', 'usage': chunk['usage']}
+                        if not chunk.get('choices'):
+                            continue
+                        delta = chunk['choices'][0]['delta']
                         content_piece = delta.get('content') or ''
                         reasoning_piece = delta.get('reasoning_content') or ''
                         content += content_piece
@@ -47,6 +55,18 @@ class LLMClient:
         result = {'content': content, 'reasoning_content': reasoning, 'tool_calls': list(calls.values())}
         print(f'[llm] response content={len(content)} reasoning={len(reasoning)} tools={[c["function"]["name"] for c in result["tool_calls"]]}')
         yield {'type': 'done', 'result': result}
+
+    async def summarize(self, prompt, model=DEFAULT_MODEL):
+        content = ''
+        usage = None
+        async for event in self.stream_chat([{'role': 'user', 'content': prompt}], model, use_tools=False):
+            if event['type'] == 'content':
+                content += event['content']
+            elif event['type'] == 'usage':
+                usage = event['usage']
+        if not usage:
+            raise RuntimeError('摘要请求未返回 usage')
+        return content
 
 
 def _api_messages(messages):

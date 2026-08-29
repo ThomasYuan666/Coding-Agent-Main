@@ -10,6 +10,7 @@ from .file_watcher import start as start_watcher, watch_loop
 from .llm import LLMClient
 from .path_utils import CONTAINER, resolve_root, safe_path
 from .rollback import RollbackManager
+from .context_manager import ContextManager, format_compression_prompt
 from config.settings import AVAILABLE_MODELS, DEFAULT_MODEL, MODEL_VISION, get_api_key
 
 
@@ -53,7 +54,9 @@ async def websocket_endpoint(websocket: WebSocket):
             elif action == 'read' and root:
                 await _read_file(websocket, root, data['path'])
             elif action == 'rollback' and root and manager:
-                await _rollback(websocket, root, manager, data.get('turn_id'))
+                await _rollback(websocket, root, manager, data.get('turn_id'), client)
+            elif action == 'compact' and root and manager and not agent_task:
+                await _compact(websocket, root, manager, client)
             elif action == 'message' and root and manager and not agent_task:
                 if await _start_turn(websocket, manager, root, data):
                     agent_task = asyncio.create_task(
@@ -138,14 +141,34 @@ async def _read_file(websocket, root, path):
         await websocket.send_json({'type': 'error', 'content': str(exc)})
 
 
-async def _rollback(websocket, root, manager, turn_id):
+async def _rollback(websocket, root, manager, turn_id, client):
     length = RollbackManager(root).restore(turn_id)
     if length is None:
         return
     manager.save(manager.load()[:length])
+    context = ContextManager(root)
+    context.invalidate()
+    summary, messages, covered = context.compression_source(manager.load())
+    if messages:
+        await websocket.send_json({'type': 'context_status', 'status': 'compacting'})
+        content = await client.summarize(format_compression_prompt('', messages))
+        context.save_summary(content, covered)
+        await websocket.send_json({'type': 'context_status', 'status': 'ready'})
     await _send_history(websocket, root, manager)
     await websocket.send_json({'type': 'files', 'files': build_tree(root)})
     await websocket.send_json({'type': 'rollback_done', 'turn_id': turn_id})
+
+
+async def _compact(websocket, root, manager, client):
+    context = ContextManager(root)
+    summary, messages, covered = context.compression_source(manager.load())
+    if not messages:
+        await websocket.send_json({'type': 'context_status', 'status': 'ready'})
+        return
+    await websocket.send_json({'type': 'context_status', 'status': 'compacting'})
+    content = await client.summarize(format_compression_prompt(summary, messages))
+    context.save_summary(content, covered)
+    await websocket.send_json({'type': 'context_status', 'status': 'ready'})
 
 
 def _rollback_turn_ids(root):
