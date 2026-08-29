@@ -1,7 +1,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { display: flex; height: 100vh; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
 
-aside { width: 250px; background: #f5f5f5; padding: 15px; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; }
+aside { width: 250px; flex: 0 0 250px; min-width: 0; background: #f5f5f5; padding: 15px; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; }
 aside h3 { font-size: 14px; margin-bottom: 10px; color: #333; }
 aside > ul { list-style: none; flex: 1; overflow-y: auto; min-height: 0; }
 aside ul ul { list-style: none; }
@@ -12,9 +12,10 @@ aside li.folder { font-weight: 500; }
 aside li.file { font-weight: normal; }
 
 
-main { flex: 1; display: flex; flex-direction: column; }
+main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 #filename { padding: 10px 15px; background: #2d2d2d; color: #fff; font-size: 14px; border-bottom: 1px solid #444; }
-.CodeMirror { flex: 1; height: auto; font-family: Consolas, Monaco, monospace; font-size: 14px; line-height: 1.6; }
+.CodeMirror { flex: 1; min-width: 0; width: 100%; height: auto; font-family: Consolas, Monaco, monospace; font-size: 14px; line-height: 1.6; }
+.CodeMirror-scroll { overflow-x: auto; }
 .CodeMirror-focused { outline: none; }
 #diff-panel { display: flex; flex-direction: column; max-height: 45%; border-bottom: 1px solid #ccc; background: #fff; }
 #diff-panel[hidden] { display: none; }
@@ -30,7 +31,7 @@ main { flex: 1; display: flex; flex-direction: column; }
 .diff-line.added { color: #146c2e; background: #e8f5e9; }
 .diff-line.removed { color: #a61b1b; background: #ffebee; }
 
-section { width: 460px; display: flex; flex-direction: column; border-left: 1px solid #ddd; background: #fafafa; }
+section { width: 460px; flex: 0 0 460px; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid #ddd; background: #fafafa; }
 #chat-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 15px; border-bottom: 1px solid #ddd; background: #fff; }
 #model-select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
 #image-status { color: #666; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -59,11 +60,12 @@ section { width: 460px; display: flex; flex-direction: column; border-left: 1px 
 
 
 .msg.reasoning { background: #f5f5f5; border: 1px solid #ccc; }
-.msg.reasoning strong { color: #757575; cursor: pointer; user-select: none; }
-.msg.reasoning strong::before { content: '💭 '; }
-.msg.reasoning strong::after { content: ' ▼'; font-size: 10px; }
-.msg.reasoning.collapsed strong::after { content: ' ▶'; }
-.msg.reasoning.collapsed span { display: none; }
+.msg.collapsible > strong { cursor: pointer; user-select: none; }
+.msg.collapsible > strong::before { content: '▾ '; font-size: 12px; }
+.msg.collapsible > strong::after { content: ''; }
+.msg.collapsible.collapsed > strong::before { content: '▸ '; }
+.msg.collapsible.collapsed > span { display: none; }
+.msg.reasoning > strong { color: #757575; }
 
 #chat { display: flex; gap: 8px; padding: 15px; background: #fff; border-top: 1px solid #ddd; }
 #input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: none; font-family: inherit; font-size: 14px; min-height: 40px; max-height: 120px; }

@@ -27,9 +27,28 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
       content.textContent = text;
     }
     messages.appendChild(item);
+    if (type === 'reasoning' || type === 'tool') {
+      makeCollapsible(item, type === 'tool' && label !== '需要确认');
+    }
     if (type === 'user' && turnId && canRollback) addRollbackButton(item, turnId);
     messages.scrollTop = messages.scrollHeight;
     return content;
+  }
+
+  function makeCollapsible(item, collapsed = false) {
+    item.classList.add('collapsible');
+    if (collapsed) item.classList.add('collapsed');
+    const header = item.querySelector('strong');
+    header.setAttribute('role', 'button');
+    header.tabIndex = 0;
+    const toggle = () => item.classList.toggle('collapsed');
+    header.onclick = toggle;
+    header.onkeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggle();
+      }
+    };
   }
 
   function addRollbackButton(item, turnId) {
@@ -57,7 +76,10 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
       if (message.role === 'user') {
         addMessage('user', '你', message.content || '', false, message.turn_id || '', rollbackTurnIds.includes(message.turn_id));
       }
-      if (message.reasoning_content) addMessage('reasoning', '思考', message.reasoning_content);
+      if (message.reasoning_content) {
+        const reasoning = addMessage('reasoning', '思考', message.reasoning_content);
+        reasoning.parentElement.classList.add('collapsed');
+      }
       if (message.role === 'assistant' && message.content) addMessage('agent', 'Agent', message.content, true);
       (message.tool_calls || []).forEach((call) => {
         const fn = call.function || {};
@@ -113,11 +135,19 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
       setBusy(false);
     }
     if (data.type === 'error') addMessage('tool', '错误', data.content);
-    if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
+    if (data.type === 'tool') {
+      collapseThinking();
+      liveSegment = null;
+      collapsePendingToolCards();
+      addMessage('tool', `工具：${data.tool}`, data.result);
+    }
     if (data.type === 'tool_call') {
       collapseThinking();
       liveSegment = null;
-      addMessage('tool', `工具：${data.tool}`, `等待审批\n参数：${data.arguments || '{}'}`);
+      const toolCall = addMessage('tool', `工具：${data.tool}`, `等待审批\n参数：${data.arguments || '{}'}`);
+      const card = toolCall.parentElement;
+      card.classList.remove('collapsed');
+      card.dataset.pendingTool = 'true';
     }
   }
 
@@ -125,6 +155,7 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
     collapseThinking();
     liveSegment = null;
     const block = addMessage('tool', '需要确认', `${data.reason}\n${data.command}`);
+    const card = block.parentElement;
     const actions = document.createElement('div');
     actions.className = 'approval-actions';
     ['approve', 'reject'].forEach((action) => {
@@ -132,11 +163,20 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
       button.textContent = action === 'approve' ? '允许' : '拒绝';
       button.onclick = () => {
         actions.textContent = action === 'approve' ? '已允许，正在执行...' : '已拒绝，正在通知 Agent...';
+        collapsePendingToolCards();
+        card.classList.add('collapsed');
         send({ action });
       };
       actions.appendChild(button);
     });
     block.parentElement.appendChild(actions);
+  }
+
+  function collapsePendingToolCards() {
+    messages.querySelectorAll('.msg.tool[data-pending-tool]').forEach((item) => {
+      item.classList.add('collapsed');
+      delete item.dataset.pendingTool;
+    });
   }
 
   input.addEventListener('keydown', (event) => {
@@ -181,12 +221,6 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
     imageStatus.textContent = '';
     setBusy(true);
   };
-
-  messages.addEventListener('click', (event) => {
-    if (event.target.tagName === 'STRONG' && event.target.parentElement.classList.contains('reasoning')) {
-      event.target.parentElement.classList.toggle('collapsed');
-    }
-  });
 
   return { handle };
 }
