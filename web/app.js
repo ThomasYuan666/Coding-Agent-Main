@@ -66,7 +66,7 @@ function renderMarkdown(text) {
   return holder.innerHTML;
 }
 
-function addMessage(type, label, text = '', markdown = false) {
+function addMessage(type, label, text = '', markdown = false, turnId = '') {
   const item = document.createElement('div');
   item.className = `msg ${type}`;
   item.innerHTML = `<strong>${label}</strong><span></span>`;
@@ -75,6 +75,13 @@ function addMessage(type, label, text = '', markdown = false) {
   if (markdown) content.innerHTML = renderMarkdown(text);
   else content.textContent = text;
   messages.appendChild(item);
+  if (type === 'user' && turnId) {
+    const button = document.createElement('button');
+    button.className = 'rollback-button';
+    button.textContent = '回退此回合';
+    button.onclick = () => send({ action: 'rollback', turn_id: turnId });
+    item.appendChild(button);
+  }
   messages.scrollTop = messages.scrollHeight;
   return item.querySelector('span');
 }
@@ -102,6 +109,14 @@ function renderHistory(history) {
       addMessage('tool', `工具：${fn.name || 'unknown'}`, `参数：${fn.arguments || '{}'}`);
     });
     if (message.role === 'tool') addMessage('tool', '工具结果', message.content || '');
+  });
+  messages.querySelectorAll('.msg.user').forEach((item, index) => {
+    const message = history.filter((entry) => entry.role === 'user')[index];
+    if (!message || !message.turn_id) return;
+    const button = document.createElement('button');
+    button.className = 'rollback-button'; button.textContent = '回退此回合';
+    button.onclick = () => send({ action: 'rollback', turn_id: message.turn_id });
+    item.appendChild(button);
   });
 }
 
@@ -152,7 +167,14 @@ onMessage((data) => {
     codeEditor.setValue(data.content);
     codeEditor.clearHistory();
   }
-  if (data.type === 'user') addMessage('user', '你', data.content);
+  if (data.type === 'user' && data.turn_id) {
+    const userSpan = addMessage('user', '你', data.content);
+    const rollback = document.createElement('button');
+    rollback.className = 'rollback-button'; rollback.textContent = '回退此回合';
+    rollback.onclick = () => send({ action: 'rollback', turn_id: data.turn_id });
+    userSpan.parentElement.appendChild(rollback);
+    data.type = 'handled';
+  }
   if (data.type === 'reasoning') appendLiveSegment('reasoning', data.content);
   if (data.type === 'start') { liveSegment = null; }
   if (data.type === 'chunk') {
@@ -178,6 +200,9 @@ onMessage((data) => {
   }
   if (data.type === 'end') liveSegment = null;
   if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
+  if (data.type === 'tool_call') {
+    addMessage('tool', `工具：${data.tool}`, `等待审批\n参数：${data.arguments || '{}'}`);
+  }
 });
 
 const connection = connect();

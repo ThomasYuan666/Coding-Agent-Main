@@ -38,6 +38,7 @@ section { width: 400px; display: flex; flex-direction: column; border-left: 1px 
 .msg.user { background: #e3f2fd; margin-left: 40px; }
 .msg.agent { background: #fff; border: 1px solid #e0e0e0; }
 .msg.tool { background: #fff3cd; border: 1px solid #ffc107; font-size: 13px; }
+.rollback-button { display: block; margin-top: 8px; padding: 3px 8px; border: 1px solid #bbb; background: #fff; color: #666; border-radius: 3px; cursor: pointer; font-size: 11px; }
 
 .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .msg strong { font-size: 12px; color: #666; font-weight: 600; }

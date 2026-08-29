@@ -1,4 +1,5 @@
 import json
+import uuid
 from pathlib import Path
 from fastapi import Body, FastAPI, WebSocket
 from fastapi.responses import FileResponse
@@ -9,6 +10,7 @@ from .file_ops import build_tree
 from .llm import LLMClient
 from .tools import apply_write, execute, prepare_write
 from .path_utils import safe_path
+from .rollback import RollbackManager
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / 'web'
@@ -32,7 +34,7 @@ async def save_file(data: dict = Body(...)):
     target.parent.mkdir(parents=True, exist_ok=True); target.write_text(data['content'], encoding='utf-8')
     return {'ok': True}
 
-async def agent_turn(ws, client, manager, root):
+async def agent_turn(ws, client, manager, root, turn_id):
     print(f'[agent] turn root={root}')
     try:
         response = None
@@ -50,8 +52,8 @@ async def agent_turn(ws, client, manager, root):
         return None
     calls = response.get('tool_calls', [])
     if not calls:
-        manager.add({'role': 'assistant', 'content': response.get('content', ''), 'reasoning_content': response.get('reasoning_content', '')}); await ws.send_json({'type': 'end'}); return None
-    manager.add({'role': 'assistant', 'content': response.get('content') or None, 'reasoning_content': response.get('reasoning_content', ''), 'tool_calls': calls})
+        manager.add({'role': 'assistant', 'content': response.get('content', ''), 'reasoning_content': response.get('reasoning_content', ''), 'turn_id': turn_id}); await ws.send_json({'type': 'end'}); return None
+    manager.add({'role': 'assistant', 'content': response.get('content') or None, 'reasoning_content': response.get('reasoning_content', ''), 'tool_calls': calls, 'turn_id': turn_id})
     parsed_calls = []
     for call in calls:
         name = call['function']['name']
@@ -66,6 +68,12 @@ async def agent_turn(ws, client, manager, root):
     pending_items = []
     if write_calls:
         changes = [prepare_write(root, args['path'], args['content']) for _, _, args in write_calls]
+        for call, name, args in write_calls:
+            await ws.send_json({
+                'type': 'tool_call',
+                'tool': name,
+                'arguments': json.dumps(args, ensure_ascii=False),
+            })
         pending_items.append({'kind': 'diff', 'calls': write_calls, 'changes': changes})
     for call, name, args in other_calls:
         if name == 'read_file':
@@ -83,6 +91,7 @@ async def agent_turn(ws, client, manager, root):
             await ws.send_json({'type': 'approval', 'tool': pending['name'], 'command': result['command'], 'reason': result['reason']})
         pending['items'] = pending_items
         pending['index'] = 0
+        pending['turn_id'] = turn_id
         return pending
     for call, name, args in parsed_calls:
         result = execute(name, args, root)
@@ -95,11 +104,11 @@ async def agent_turn(ws, client, manager, root):
         await ws.send_json({'type': 'tool', 'tool': name, 'result': result['result']})
         if name in {'write_file', 'delete_file'}:
             await ws.send_json({'type': 'files', 'files': build_tree(root)})
-    return await agent_turn(ws, client, manager, root)
+    return await agent_turn(ws, client, manager, root, turn_id)
 
 @app.websocket('/ws')
 async def websocket_endpoint(ws: WebSocket):
-    await ws.accept(); root = None; manager = None; pending = None; client = LLMClient(get_api_key())
+    await ws.accept(); root = None; manager = None; pending = None; turn_id = None; client = LLMClient(get_api_key())
     try:
         while True:
             data = await ws.receive_json(); action = data.get('action')
@@ -116,14 +125,27 @@ async def websocket_endpoint(ws: WebSocket):
                     if Path(root) not in target.parents: raise ValueError('路径不在当前工作区内')
                     await ws.send_json({'type': 'file_content', 'path': data['path'], 'content': target.read_text(encoding='utf-8')})
                 except Exception as exc: await ws.send_json({'type': 'error', 'content': str(exc)})
+            elif action == 'rollback' and root and manager:
+                target_id = data.get('turn_id')
+                length = RollbackManager(root).restore(target_id)
+                if length is not None:
+                    manager.save(manager.load()[:length])
+                    await ws.send_json({'type': 'history', 'messages': manager.load()})
+                    await ws.send_json({'type': 'files', 'files': build_tree(root)})
+                    await ws.send_json({'type': 'rollback_done', 'turn_id': target_id})
             elif action == 'message' and root and manager:
-                manager.add({'role': 'user', 'content': data['content']}); await ws.send_json({'type': 'user', 'content': data['content']}); await ws.send_json({'type': 'start'}); pending = await agent_turn(ws, client, manager, root)
+                turn_id = uuid.uuid4().hex
+                manager.add({'role': 'user', 'content': data['content'], 'turn_id': turn_id})
+                RollbackManager(root).begin(turn_id, len(manager.load()) - 1)
+                await ws.send_json({'type': 'user', 'content': data['content'], 'turn_id': turn_id}); await ws.send_json({'type': 'start'}); pending = await agent_turn(ws, client, manager, root, turn_id)
             elif action in {'approve', 'reject'} and pending and root and manager:
                 if pending.get('items'):
                     item = pending['items'][pending['index']]
                     if item['kind'] == 'diff':
                         if action == 'approve':
-                            for change in item['changes']: apply_write(root, change)
+                            for change in item['changes']:
+                                RollbackManager(root).record(pending['turn_id'], change)
+                                apply_write(root, change)
                         status = 'Files accepted and written.' if action == 'approve' else 'User rejected the file changes; try another approach.'
                         for call, _, _ in item['calls']:
                             manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': status})
@@ -145,7 +167,7 @@ async def websocket_endpoint(ws: WebSocket):
                             result = execute(next_item['name'], next_item['args'], root)
                             await ws.send_json({'type': 'approval', 'tool': next_item['name'], 'command': result['command'], 'reason': result['reason']})
                     else:
-                        pending = await agent_turn(ws, client, manager, root)
+                        pending = await agent_turn(ws, client, manager, root, turn_id)
                     continue
                 if pending.get('kind') == 'diff':
                     if action == 'approve':
@@ -157,13 +179,13 @@ async def websocket_endpoint(ws: WebSocket):
                     await ws.send_json({'type': 'diff_status', 'status': 'accepted' if action == 'approve' else 'rejected'})
                     await ws.send_json({'type': 'tool', 'tool': 'write_file', 'result': status})
                     if action == 'approve': await ws.send_json({'type': 'files', 'files': build_tree(root)})
-                    pending = await agent_turn(ws, client, manager, root)
+                    pending = await agent_turn(ws, client, manager, root, turn_id)
                     continue
                 call = pending['call']; result = execute(pending['name'], pending['args'], root, approved=action == 'approve')
                 if action == 'reject': result = {'result': '用户拒绝了该操作，请尝试其他方案。'}
                 manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': result['result']}); await ws.send_json({'type': 'tool', 'tool': pending['name'], 'result': result['result']})
                 if action == 'approve' and pending['name'] in {'write_file', 'delete_file'}:
                     await ws.send_json({'type': 'files', 'files': build_tree(root)})
-                pending = await agent_turn(ws, client, manager, root)
+                pending = await agent_turn(ws, client, manager, root, turn_id)
     except Exception as exc:
         print(f'WebSocket error: {type(exc).__name__}: {exc}')
