@@ -16,6 +16,19 @@ main { flex: 1; display: flex; flex-direction: column; }
 #filename { padding: 10px 15px; background: #2d2d2d; color: #fff; font-size: 14px; border-bottom: 1px solid #444; }
 .CodeMirror { flex: 1; height: auto; font-family: Consolas, Monaco, monospace; font-size: 14px; line-height: 1.6; }
 .CodeMirror-focused { outline: none; }
+#diff-panel { display: flex; flex-direction: column; max-height: 45%; border-bottom: 1px solid #ccc; background: #fff; }
+#diff-panel[hidden] { display: none; }
+.diff-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #ddd; }
+.diff-toolbar strong { margin-right: auto; font-size: 13px; }
+.diff-toolbar button { padding: 5px 10px; border: 1px solid #bbb; border-radius: 3px; background: #fff; cursor: pointer; }
+.diff-toolbar button:first-of-type { background: #d8f3dc; border-color: #74c69d; }
+.diff-tabs { display: flex; gap: 2px; overflow-x: auto; padding: 6px 8px 0; }
+.diff-tabs button { padding: 5px 9px; border: 1px solid #ddd; background: #f4f4f4; cursor: pointer; white-space: nowrap; }
+.diff-tabs button.active { background: #fff; border-bottom-color: #fff; font-weight: 600; }
+.diff-preview { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.5 Consolas, Monaco, monospace; }
+.diff-line { white-space: pre; min-width: max-content; }
+.diff-line.added { color: #146c2e; background: #e8f5e9; }
+.diff-line.removed { color: #a61b1b; background: #ffebee; }
 
 section { width: 400px; display: flex; flex-direction: column; border-left: 1px solid #ddd; background: #fafafa; }
 
@@ -60,3 +73,6 @@ section { width: 400px; display: flex; flex-direction: column; border-left: 1px 
 .msg button { padding: 5px 12px; margin-left: 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; }
 .msg button[data-ok="1"] { background: #28a745; color: white; }
 .msg button[data-ok="0"] { background: #dc3545; color: white; }
+.approval-actions { display: flex; gap: 8px; margin-top: 8px; }
+.approval-actions button { margin-left: 0; background: #fff; }
+.approval-actions button:disabled { opacity: 0.6; cursor: default; }

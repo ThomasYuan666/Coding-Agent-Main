@@ -7,7 +7,7 @@ from config.settings import get_api_key
 from .conversation import ConversationManager
 from .file_ops import build_tree
 from .llm import LLMClient
-from .tools import execute
+from .tools import apply_write, execute, prepare_write
 from .path_utils import safe_path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +52,7 @@ async def agent_turn(ws, client, manager, root):
     if not calls:
         manager.add({'role': 'assistant', 'content': response.get('content', ''), 'reasoning_content': response.get('reasoning_content', '')}); await ws.send_json({'type': 'end'}); return None
     manager.add({'role': 'assistant', 'content': response.get('content') or None, 'reasoning_content': response.get('reasoning_content', ''), 'tool_calls': calls})
+    parsed_calls = []
     for call in calls:
         name = call['function']['name']
         print(f'[tool] requested name={name}')
@@ -59,6 +60,31 @@ async def agent_turn(ws, client, manager, root):
         except json.JSONDecodeError as exc:
             print(f'[tool] invalid arguments name={name}: {exc}')
             args = {}
+        parsed_calls.append((call, name, args))
+    write_calls = [(call, name, args) for call, name, args in parsed_calls if name == 'write_file']
+    other_calls = [(call, name, args) for call, name, args in parsed_calls if name != 'write_file']
+    pending_items = []
+    if write_calls:
+        changes = [prepare_write(root, args['path'], args['content']) for _, _, args in write_calls]
+        pending_items.append({'kind': 'diff', 'calls': write_calls, 'changes': changes})
+    for call, name, args in other_calls:
+        if name == 'read_file':
+            result = execute(name, args, root)
+            manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': result['result']})
+            await ws.send_json({'type': 'tool', 'tool': name, 'result': result['result']})
+        else:
+            pending_items.append({'kind': 'command', 'call': call, 'name': name, 'args': args})
+    if pending_items:
+        pending = pending_items[0]
+        if pending['kind'] == 'diff':
+            await ws.send_json({'type': 'diff', 'files': pending['changes']})
+        else:
+            result = execute(pending['name'], pending['args'], root)
+            await ws.send_json({'type': 'approval', 'tool': pending['name'], 'command': result['command'], 'reason': result['reason']})
+        pending['items'] = pending_items
+        pending['index'] = 0
+        return pending
+    for call, name, args in parsed_calls:
         result = execute(name, args, root)
         if result.get('needs_approval'):
             print(f'[tool] approval required name={name}')
@@ -93,6 +119,46 @@ async def websocket_endpoint(ws: WebSocket):
             elif action == 'message' and root and manager:
                 manager.add({'role': 'user', 'content': data['content']}); await ws.send_json({'type': 'user', 'content': data['content']}); await ws.send_json({'type': 'start'}); pending = await agent_turn(ws, client, manager, root)
             elif action in {'approve', 'reject'} and pending and root and manager:
+                if pending.get('items'):
+                    item = pending['items'][pending['index']]
+                    if item['kind'] == 'diff':
+                        if action == 'approve':
+                            for change in item['changes']: apply_write(root, change)
+                        status = 'Files accepted and written.' if action == 'approve' else 'User rejected the file changes; try another approach.'
+                        for call, _, _ in item['calls']:
+                            manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': status})
+                        await ws.send_json({'type': 'diff_status', 'status': 'accepted' if action == 'approve' else 'rejected'})
+                        await ws.send_json({'type': 'tool', 'tool': 'write_file', 'result': status})
+                        if action == 'approve': await ws.send_json({'type': 'files', 'files': build_tree(root)})
+                    else:
+                        call = item['call']
+                        result = execute(item['name'], item['args'], root, approved=action == 'approve')
+                        if action == 'reject': result = {'result': 'User rejected this command; try another approach.'}
+                        manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': result['result']})
+                        await ws.send_json({'type': 'tool', 'tool': item['name'], 'result': result['result']})
+                    pending['index'] += 1
+                    if pending['index'] < len(pending['items']):
+                        next_item = pending['items'][pending['index']]
+                        if next_item['kind'] == 'diff':
+                            await ws.send_json({'type': 'diff', 'files': next_item['changes']})
+                        else:
+                            result = execute(next_item['name'], next_item['args'], root)
+                            await ws.send_json({'type': 'approval', 'tool': next_item['name'], 'command': result['command'], 'reason': result['reason']})
+                    else:
+                        pending = await agent_turn(ws, client, manager, root)
+                    continue
+                if pending.get('kind') == 'diff':
+                    if action == 'approve':
+                        for change in pending['changes']:
+                            apply_write(root, change)
+                    status = '已接受并写入文件。' if action == 'approve' else '用户拒绝了文件修改，请尝试其他方案。'
+                    for call, _, _ in pending['calls']:
+                        manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': status})
+                    await ws.send_json({'type': 'diff_status', 'status': 'accepted' if action == 'approve' else 'rejected'})
+                    await ws.send_json({'type': 'tool', 'tool': 'write_file', 'result': status})
+                    if action == 'approve': await ws.send_json({'type': 'files', 'files': build_tree(root)})
+                    pending = await agent_turn(ws, client, manager, root)
+                    continue
                 call = pending['call']; result = execute(pending['name'], pending['args'], root, approved=action == 'approve')
                 if action == 'reject': result = {'result': '用户拒绝了该操作，请尝试其他方案。'}
                 manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': result['result']}); await ws.send_json({'type': 'tool', 'tool': pending['name'], 'result': result['result']})

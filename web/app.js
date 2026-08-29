@@ -19,6 +19,23 @@ const codeEditor = CodeMirror.fromTextArea(editor, {
 });
 let currentRoot = '';
 let liveSegment = null;
+const diffPanel = document.querySelector('#diff-panel');
+
+function renderDiff(changes) {
+  diffPanel.hidden = false;
+  diffPanel.innerHTML = '<div class="diff-toolbar"><strong>Pending changes</strong><button data-action="approve">Accept all</button><button data-action="reject">Reject all</button></div><div class="diff-tabs"></div><pre class="diff-preview"></pre>';
+  const tabs = diffPanel.querySelector('.diff-tabs');
+  const preview = diffPanel.querySelector('.diff-preview');
+  const show = (change) => {
+    tabs.querySelectorAll('button').forEach((button) => button.classList.toggle('active', button.dataset.path === change.path));
+    preview.innerHTML = '';
+    change.lines.forEach((line) => { const row = document.createElement('div'); row.className = `diff-line ${line.type}`; row.textContent = `${line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '} ${line.text}`; preview.appendChild(row); });
+  };
+  changes.forEach((change) => { const tab = document.createElement('button'); tab.textContent = change.path; tab.dataset.path = change.path; tab.onclick = () => show(change); tabs.appendChild(tab); });
+  show(changes[0]);
+  diffPanel.querySelector('[data-action="approve"]').onclick = () => send({ action: 'approve' });
+  diffPanel.querySelector('[data-action="reject"]').onclick = () => send({ action: 'reject' });
+}
 
 function saveCurrentFile() {
   if (!currentRoot || !editor.dataset.path) return;
@@ -125,6 +142,8 @@ onMessage((data) => {
   }
   if (data.type === 'container') renderFileTree(data.files, files);
   if (data.type === 'files') refreshCurrentWorkspace(data.files);
+  if (data.type === 'diff') renderDiff(data.files);
+  if (data.type === 'diff_status') { diffPanel.hidden = true; diffPanel.innerHTML = ''; }
   if (data.type === 'root_set') document.querySelector('#workspace').textContent = `当前工作区：${data.root.split('\\').pop()}`;
   if (data.type === 'file_content') {
     document.querySelector('#filename').textContent = data.path;
@@ -139,9 +158,26 @@ onMessage((data) => {
   if (data.type === 'chunk') {
     appendLiveSegment('content', data.content);
   }
+  if (data.type === 'approval') {
+    liveSegment = null;
+    const block = addMessage('tool', '需要确认', `${data.reason}\n${data.command}`);
+    const card = block.parentElement;
+    const actions = document.createElement('div');
+    actions.className = 'approval-actions';
+    ['approve', 'reject'].forEach((action) => {
+      const button = document.createElement('button');
+      button.textContent = action === 'approve' ? '允许' : '拒绝';
+      button.onclick = () => {
+        actions.textContent = action === 'approve' ? '已允许，正在执行...' : '已拒绝，正在通知 Agent...';
+        send({ action });
+      };
+      actions.appendChild(button);
+    });
+    card.appendChild(actions);
+    data.type = 'handled';
+  }
   if (data.type === 'end') liveSegment = null;
   if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
-  if (data.type === 'approval') { const block = addMessage('tool', '需要确认', `${data.reason}\n${data.command}`); block.innerHTML += ' <button data-a="approve">允许</button><button data-a="reject">拒绝</button>'; block.querySelectorAll('button').forEach((button) => { button.onclick = () => send({ action: button.dataset.a }); }); }
 });
 
 const connection = connect();

@@ -1,6 +1,32 @@
 import os
 import subprocess
+import difflib
 from .path_utils import safe_path
+
+def prepare_write(root, path, content):
+    target = safe_path(root, path)
+    exists = os.path.exists(target)
+    old_content = open(target, encoding='utf-8').read() if exists else ''
+    old_lines = old_content.splitlines(keepends=True)
+    new_lines = content.splitlines(keepends=True)
+    if not old_lines and old_content: old_lines = [old_content]
+    if not new_lines and content: new_lines = [content]
+    lines = []
+    if not exists:
+        lines = [{'type': 'added', 'text': line} for line in new_lines]
+    else:
+        for line in difflib.ndiff(old_lines, new_lines):
+            if line.startswith('  '): lines.append({'type': 'same', 'text': line[2:]})
+            elif line.startswith('- '): lines.append({'type': 'removed', 'text': line[2:]})
+            elif line.startswith('+ '): lines.append({'type': 'added', 'text': line[2:]})
+    return {'path': path, 'exists': exists, 'old_content': old_content, 'new_content': content, 'lines': lines}
+
+def apply_write(root, change):
+    target = safe_path(root, change['path'])
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, 'w', encoding='utf-8') as file:
+        file.write(change['new_content'])
+    return f'已写入 {change["path"]}'
 
 
 def execute(name, arguments, root, approved=False):
