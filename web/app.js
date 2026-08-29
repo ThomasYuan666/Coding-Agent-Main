@@ -1,275 +1,47 @@
 import { connect, send, onMessage } from './websocket.js';
-import { renderFileTree } from './filetree.js';
+import { createChatUI } from './chat-ui.js';
+import { createDiffUI } from './diff-ui.js';
+import { createEditor } from './editor-ui.js';
+import { createWorkspaceUI } from './workspace-ui.js';
 
-const ROOT = 'workspace';
 const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
-const editor = document.querySelector('#editor');
-const input = document.querySelector('#input');
-const modelSelect = document.querySelector('#model-select');
-const imageStatus = document.querySelector('#image-status');
-const sendButton = document.querySelector('#send');
-const codeEditor = CodeMirror.fromTextArea(editor, {
-  lineNumbers: true,
-  lineWrapping: false,
-  indentUnit: 4,
-  tabSize: 4,
-  autofocus: false,
-  extraKeys: {
-    'Ctrl-S': saveCurrentFile,
-    'Cmd-S': saveCurrentFile
-  }
+const editorElement = document.querySelector('#editor');
+
+const workspaceUI = createWorkspaceUI({
+  files,
+  title: document.querySelector('#workspace'),
+  messages,
+  send
 });
-let currentRoot = '';
-let liveSegment = null;
-let pendingImage = null;
-let busy = false;
-const diffPanel = document.querySelector('#diff-panel');
-
-function renderDiff(changes) {
-  diffPanel.hidden = false;
-  diffPanel.innerHTML = '<div class="diff-toolbar"><strong>Pending changes</strong><button data-action="approve">Accept all</button><button data-action="reject">Reject all</button></div><div class="diff-tabs"></div><pre class="diff-preview"></pre>';
-  const tabs = diffPanel.querySelector('.diff-tabs');
-  const preview = diffPanel.querySelector('.diff-preview');
-  const show = (change) => {
-    tabs.querySelectorAll('button').forEach((button) => button.classList.toggle('active', button.dataset.path === change.path));
-    preview.innerHTML = '';
-    change.lines.forEach((line) => { const row = document.createElement('div'); row.className = `diff-line ${line.type}`; row.textContent = `${line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '} ${line.text}`; preview.appendChild(row); });
-  };
-  changes.forEach((change) => { const tab = document.createElement('button'); tab.textContent = change.path; tab.dataset.path = change.path; tab.onclick = () => show(change); tabs.appendChild(tab); });
-  show(changes[0]);
-  diffPanel.querySelector('[data-action="approve"]').onclick = () => send({ action: 'approve' });
-  diffPanel.querySelector('[data-action="reject"]').onclick = () => send({ action: 'reject' });
-}
-
-function saveCurrentFile() {
-  if (!currentRoot || !editor.dataset.path) return;
-  fetch('/api/file', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ root: currentRoot, path: editor.dataset.path, content: codeEditor.getValue() })
-  });
-}
-
-function editorMode(path) {
-  const extension = path.split('.').pop().toLowerCase();
-  return ({
-    py: 'python', js: 'javascript', jsx: 'javascript', ts: 'javascript', tsx: 'javascript',
-    c: 'text/x-csrc', h: 'text/x-csrc', cpp: 'text/x-c++src', hpp: 'text/x-c++src',
-    java: 'text/x-java', html: 'xml', htm: 'xml', css: 'css', md: 'markdown'
-  })[extension] || null;
-}
-
-function renderMarkdown(text) {
-  if (!window.marked) return text;
-  const html = window.marked.parse(text, { breaks: true });
-  const safe = window.DOMPurify ? window.DOMPurify.sanitize(html) : html;
-  if (!window.hljs) return safe;
-  const holder = document.createElement('div');
-  holder.innerHTML = safe;
-  holder.querySelectorAll('pre code').forEach((block) => window.hljs.highlightElement(block));
-  return holder.innerHTML;
-}
-
-function addMessage(type, label, text = '', markdown = false, turnId = '') {
-  const item = document.createElement('div');
-  item.className = `msg ${type}`;
-  item.innerHTML = `<strong>${label}</strong><span></span>`;
-  const content = item.querySelector('span');
-  content.dataset.raw = typeof text === 'string' ? text : '';
-  if (Array.isArray(text)) {
-    text.forEach((part) => {
-      if (part.type === 'text') content.appendChild(document.createTextNode(part.text));
-      if (part.type === 'image_url' && part.image_url?.url) {
-        const image = document.createElement('img');
-        image.src = part.image_url.url;
-        image.alt = '用户粘贴的图片';
-        image.className = 'message-image';
-        content.appendChild(image);
-      }
-    });
-  } else if (markdown) content.innerHTML = renderMarkdown(text);
-  else content.textContent = text;
-  messages.appendChild(item);
-  if (type === 'user' && turnId) {
-    const button = document.createElement('button');
-    button.className = 'rollback-button';
-    button.textContent = '回退此回合';
-    button.onclick = () => send({ action: 'rollback', turn_id: turnId });
-    item.appendChild(button);
-  }
-  messages.scrollTop = messages.scrollHeight;
-  return item.querySelector('span');
-}
-
-function appendLiveSegment(type, text) {
-  if (!liveSegment || liveSegment.dataset.type !== type) {
-    const span = addMessage(type === 'content' ? 'agent' : 'reasoning', type === 'reasoning' ? 'Thinking' : 'Agent', '', type === 'content');
-    liveSegment = span;
-    liveSegment.dataset.type = type;
-  }
-  liveSegment.dataset.raw = (liveSegment.dataset.raw || '') + text;
-  liveSegment.innerHTML = type === 'content' ? renderMarkdown(liveSegment.dataset.raw) : '';
-  if (type === 'reasoning') liveSegment.textContent = liveSegment.dataset.raw;
-  messages.scrollTop = messages.scrollHeight;
-}
-
-function renderHistory(history) {
-  messages.innerHTML = '';
-  history.filter((message) => message.role !== 'system').forEach((message) => {
-    if (message.role === 'user') addMessage('user', '你', message.content || '');
-    if (message.reasoning_content) addMessage('reasoning', '思考', message.reasoning_content);
-    if (message.role === 'assistant' && message.content) addMessage('agent', 'Agent', message.content, true);
-    (message.tool_calls || []).forEach((call) => {
-      const fn = call.function || {};
-      addMessage('tool', `工具：${fn.name || 'unknown'}`, `参数：${fn.arguments || '{}'}`);
-    });
-    if (message.role === 'tool') addMessage('tool', '工具结果', message.content || '');
-  });
-  messages.querySelectorAll('.msg.user').forEach((item, index) => {
-    const message = history.filter((entry) => entry.role === 'user')[index];
-    if (!message || !message.turn_id) return;
-    const button = document.createElement('button');
-    button.className = 'rollback-button'; button.textContent = '回退此回合';
-    button.onclick = () => send({ action: 'rollback', turn_id: message.turn_id });
-    item.appendChild(button);
-  });
-}
-
-function setBusy(value) {
-  busy = value;
-  sendButton.disabled = value;
-}
-
-function refreshCurrentWorkspace(tree) {
-  if (!currentRoot) return;
-  const name = currentRoot.split('\\').pop();
-  const workspaceItem = [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
-    .find((item) => item.dataset.path === name);
-  if (!workspaceItem) return;
-  const temporary = document.createElement('div');
-  renderFileTree(tree, temporary);
-  const newChildren = temporary.querySelector(':scope > ul');
-  const oldChildren = workspaceItem.querySelector(':scope > ul');
-  if (oldChildren) oldChildren.replaceWith(newChildren);
-  else workspaceItem.appendChild(newChildren);
-  newChildren.style.display = 'block';
-  workspaceItem.classList.add('active', 'expanded');
-}
-
-function selectWorkspace(name) {
-  currentRoot = `${ROOT}\\${name}`;
-  document.querySelector('#workspace').textContent = `当前工作区：${name}`;
-  document.querySelectorAll('#files > ul > li[data-type="folder"]').forEach((item) => {
-    const selected = item.dataset.path === name;
-    item.classList.toggle('active', selected);
-    item.classList.toggle('expanded', selected);
-    const children = item.querySelector(':scope > ul');
-    if (children) children.style.display = selected ? 'block' : 'none';
-  });
-  messages.innerHTML = '';
-  send({ action: 'set_root', root: currentRoot });
-}
+const editorUI = createEditor({
+  textarea: editorElement,
+  filename: document.querySelector('#filename'),
+  getRoot: workspaceUI.getRoot
+});
+const chatUI = createChatUI({
+  messages,
+  input: document.querySelector('#input'),
+  modelSelect: document.querySelector('#model-select'),
+  imageStatus: document.querySelector('#image-status'),
+  form: document.querySelector('#chat'),
+  sendButton: document.querySelector('#send'),
+  getRoot: workspaceUI.getRoot,
+  send
+});
+const diffUI = createDiffUI({
+  panel: document.querySelector('#diff-panel'),
+  send
+});
 
 onMessage((data) => {
-  if (data.type === 'history') {
-    renderHistory(data.messages);
-    return;
-  }
-  if (data.type === 'container') renderFileTree(data.files, files);
-  if (data.type === 'files') refreshCurrentWorkspace(data.files);
-  if (data.type === 'diff') renderDiff(data.files);
-  if (data.type === 'diff_status') { diffPanel.hidden = true; diffPanel.innerHTML = ''; }
-  if (data.type === 'root_set') document.querySelector('#workspace').textContent = `当前工作区：${data.root.split('\\').pop()}`;
-  if (data.type === 'file_content') {
-    document.querySelector('#filename').textContent = data.path;
-    editor.dataset.path = data.path;
-    codeEditor.setOption('mode', editorMode(data.path));
-    codeEditor.setValue(data.content);
-    codeEditor.clearHistory();
-  }
-  if (data.type === 'user' && data.turn_id) {
-    const userSpan = addMessage('user', '你', data.content);
-    const rollback = document.createElement('button');
-    rollback.className = 'rollback-button'; rollback.textContent = '回退此回合';
-    rollback.onclick = () => send({ action: 'rollback', turn_id: data.turn_id });
-    userSpan.parentElement.appendChild(rollback);
-    data.type = 'handled';
-  }
-  if (data.type === 'reasoning') appendLiveSegment('reasoning', data.content);
-  if (data.type === 'start') { liveSegment = null; }
-  if (data.type === 'chunk') {
-    appendLiveSegment('content', data.content);
-  }
-  if (data.type === 'approval') {
-    liveSegment = null;
-    const block = addMessage('tool', '需要确认', `${data.reason}\n${data.command}`);
-    const card = block.parentElement;
-    const actions = document.createElement('div');
-    actions.className = 'approval-actions';
-    ['approve', 'reject'].forEach((action) => {
-      const button = document.createElement('button');
-      button.textContent = action === 'approve' ? '允许' : '拒绝';
-      button.onclick = () => {
-        actions.textContent = action === 'approve' ? '已允许，正在执行...' : '已拒绝，正在通知 Agent...';
-        send({ action });
-      };
-      actions.appendChild(button);
-    });
-    card.appendChild(actions);
-    data.type = 'handled';
-  }
-  if (data.type === 'end') { liveSegment = null; setBusy(false); }
-  if (data.type === 'error') addMessage('tool', '错误', data.content);
-  if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
-  if (data.type === 'tool_call') {
-    addMessage('tool', `工具：${data.tool}`, `等待审批\n参数：${data.arguments || '{}'}`);
-  }
+  chatUI.handle(data);
+  if (data.type === 'container') workspaceUI.renderContainer(data.files);
+  if (data.type === 'files') workspaceUI.refresh(data.files);
+  if (data.type === 'diff') diffUI.show(data.files);
+  if (data.type === 'diff_status') diffUI.hide();
+  if (data.type === 'file_content') editorUI.loadFile(data);
 });
 
 const connection = connect();
 connection.addEventListener('open', () => send({ action: 'set_container' }), { once: true });
-files.addEventListener('click', (event) => {
-  const item = event.target.closest('li');
-  if (!item) return;
-  if (item.dataset.type === 'folder' && item.parentElement === files.querySelector('ul')) {
-    selectWorkspace(item.dataset.path);
-    return;
-  }
-  if (item.dataset.type === 'file' && currentRoot) {
-    event.stopImmediatePropagation();
-    const prefix = `${currentRoot.split('\\').pop()}\\`;
-    const path = item.dataset.path.startsWith(prefix) ? item.dataset.path.slice(prefix.length) : item.dataset.path;
-    send({ action: 'read', path });
-  }
-}, true);
-input.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    document.querySelector('#chat').requestSubmit();
-  }
-});
-input.addEventListener('paste', (event) => {
-  const image = [...(event.clipboardData?.items || [])].find((item) => item.type.startsWith('image/'));
-  if (!image) return;
-  const file = image.getAsFile();
-  if (!file || file.size > 32 * 1024 * 1024) { imageStatus.textContent = '图片超过 32 MiB'; return; }
-  event.preventDefault();
-  const reader = new FileReader();
-  reader.onload = () => { pendingImage = reader.result; imageStatus.textContent = `已粘贴图片 (${Math.round(file.size / 1024)} KiB)`; };
-  reader.readAsDataURL(file);
-});
-document.querySelector('#chat').onsubmit = (event) => {
-  event.preventDefault();
-  if (busy || !currentRoot) return;
-  const text = input.value.trim();
-  if (!text && !pendingImage) return;
-  const content = pendingImage ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: pendingImage, detail: 'auto' } }] : text;
-  send({ action: 'message', content, model: modelSelect.value });
-  input.value = ''; pendingImage = null; imageStatus.textContent = ''; setBusy(true);
-};
-messages.addEventListener('click', (event) => {
-  if (event.target.tagName === 'STRONG' && event.target.parentElement.classList.contains('reasoning')) {
-    event.target.parentElement.classList.toggle('collapsed');
-  }
-});

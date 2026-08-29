@@ -36,7 +36,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if candidate.is_dir() and CONTAINER.resolve() in candidate.parents:
                     root, manager = str(candidate), ConversationManager(candidate)
                     await websocket.send_json({'type': 'root_set', 'root': root})
-                    await websocket.send_json({'type': 'history', 'messages': manager.load()})
+                    await _send_history(websocket, root, manager)
             elif action == 'files' and root:
                 await websocket.send_json({'type': 'files', 'files': build_tree(root)})
             elif action == 'read' and root:
@@ -86,6 +86,7 @@ async def _start_turn(websocket, manager, root, data):
     manager.add({'role': 'user', 'content': content, 'turn_id': turn_id})
     RollbackManager(root).begin(turn_id, len(manager.load()) - 1)
     await websocket.send_json({'type': 'user', 'content': content, 'turn_id': turn_id})
+    await websocket.send_json({'type': 'rollback_state', 'turn_ids': _rollback_turn_ids(root)})
     await websocket.send_json({'type': 'start'})
     return True
 
@@ -112,6 +113,18 @@ async def _rollback(websocket, root, manager, turn_id):
     if length is None:
         return
     manager.save(manager.load()[:length])
-    await websocket.send_json({'type': 'history', 'messages': manager.load()})
+    await _send_history(websocket, root, manager)
     await websocket.send_json({'type': 'files', 'files': build_tree(root)})
     await websocket.send_json({'type': 'rollback_done', 'turn_id': turn_id})
+
+
+def _rollback_turn_ids(root):
+    return [record['turn_id'] for record in RollbackManager(root).load()]
+
+
+async def _send_history(websocket, root, manager):
+    await websocket.send_json({
+        'type': 'history',
+        'messages': manager.load(),
+        'rollback_turn_ids': _rollback_turn_ids(root),
+    })

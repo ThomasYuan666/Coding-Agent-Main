@@ -2,8 +2,6 @@
  * 文件树渲染模块
  */
 
-import { send } from './websocket.js';
-
 /**
  * 渲染文件树
  * @param {Array} files - 文件树数据
@@ -57,7 +55,6 @@ function createTreeNode(item) {
     const span = document.createElement('span');
     span.textContent = `📄 ${item.name}`;
     span.className = 'file';
-    span.onclick = () => send({ action: 'read', path: item.path });
     li.appendChild(span);
   }
 

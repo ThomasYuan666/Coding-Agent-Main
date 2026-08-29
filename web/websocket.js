@@ -60,20 +60,3 @@ export function send(data) {
   ws.send(JSON.stringify(data));
   return true;
 }
-
-/**
- * 断开连接
- */
-export function disconnect() {
-  if (ws) {
-    ws.close();
-    ws = null;
-  }
-}
-
-/**
- * 获取连接状态
- */
-export function isConnected() {
-  return ws && ws.readyState === WebSocket.OPEN;
-}
