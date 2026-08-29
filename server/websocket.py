@@ -6,6 +6,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from .agent_loop import agent_turn, cancel_pending, resolve_approval
 from .conversation import ConversationManager
 from .file_ops import build_tree
+from .file_watcher import start as start_watcher, watch_loop
 from .llm import LLMClient
 from .path_utils import CONTAINER, resolve_root, safe_path
 from .rollback import RollbackManager
@@ -27,6 +28,10 @@ async def websocket_endpoint(websocket: WebSocket):
     pending = None
     agent_task = None
     client = LLMClient(get_api_key())
+    state = {'root': None}
+    queue = asyncio.Queue()
+    observer = start_watcher(CONTAINER, asyncio.get_running_loop(), queue)
+    watch_task = asyncio.create_task(watch_loop(websocket, CONTAINER, state, queue))
     try:
         while True:
             data = await websocket.receive_json()
@@ -40,6 +45,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 candidate = resolve_root(data['root'])
                 if candidate.is_dir() and CONTAINER.resolve() in candidate.parents:
                     root, manager = str(candidate), ConversationManager(candidate)
+                    state['root'] = root
                     await websocket.send_json({'type': 'root_set', 'root': root})
                     await _send_history(websocket, root, manager)
             elif action == 'files' and root:
@@ -81,6 +87,13 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as exc:
         print(f'[websocket] error: {type(exc).__name__}: {exc}')
     finally:
+        watch_task.cancel()
+        try:
+            await watch_task
+        except asyncio.CancelledError:
+            pass
+        observer.stop()
+        observer.join(timeout=2)
         if agent_task and not agent_task.done():
             agent_task.cancel()
 

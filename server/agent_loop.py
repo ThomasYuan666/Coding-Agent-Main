@@ -1,6 +1,5 @@
 import json
 
-from .file_ops import build_tree
 from .rollback import RollbackManager
 from .tools import apply_write, execute, prepare_write
 
@@ -83,8 +82,6 @@ async def resolve_approval(websocket, client, manager, root, pending, approved):
     else:
         result = _resolve_command(manager, root, pending["turn_id"], item, approved)
         await websocket.send_json({"type": "tool", "tool": item["name"], "result": result})
-        if approved and item["name"] == "delete_file":
-            await websocket.send_json({"type": "files", "files": build_tree(root)})
 
     pending["index"] += 1
     if pending["index"] < len(pending["items"]):
@@ -144,8 +141,6 @@ async def _resolve_diff(websocket, manager, root, turn_id, item, approved):
     for call, _, _ in item["calls"]:
         manager.add({"role": "tool", "tool_call_id": call["id"], "content": status})
     await websocket.send_json({"type": "diff_status", "status": "accepted" if approved else "rejected"})
-    if approved:
-        await websocket.send_json({"type": "files", "files": build_tree(root)})
     return status
 
 

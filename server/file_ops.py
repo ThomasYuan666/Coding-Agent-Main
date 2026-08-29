@@ -21,7 +21,7 @@ def build_tree(path: str, prefix: str = '') -> List[Dict[str, Any]]:
 
     try:
         items = sorted(os.listdir(path))
-    except PermissionError:
+    except (FileNotFoundError, PermissionError):
         return result
 
     for item in items:
