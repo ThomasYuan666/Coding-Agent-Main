@@ -100,6 +100,17 @@ async def resolve_approval(websocket, client, manager, root, pending, approved):
     )
 
 
+def cancel_pending(manager, pending):
+    for item in pending['items'][pending['index']:]:
+        calls = item['calls'] if item['kind'] == 'diff' else [(item['call'], None, None)]
+        for call, _, _ in calls:
+            manager.add({
+                'role': 'tool',
+                'tool_call_id': call['id'],
+                'content': 'User stopped this Agent turn before approving the operation.',
+            })
+
+
 def _parse_call(call):
     name = call["function"]["name"]
     print(f"[tool] requested name={name}")

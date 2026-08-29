@@ -1,8 +1,9 @@
+import asyncio
 import uuid
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from .agent_loop import agent_turn, resolve_approval
+from .agent_loop import agent_turn, cancel_pending, resolve_approval
 from .conversation import ConversationManager
 from .file_ops import build_tree
 from .llm import LLMClient
@@ -24,10 +25,14 @@ async def websocket_endpoint(websocket: WebSocket):
     root = None
     manager = None
     pending = None
+    agent_task = None
     client = LLMClient(get_api_key())
     try:
         while True:
             data = await websocket.receive_json()
+            if agent_task and agent_task.done():
+                pending = agent_task.result()
+                agent_task = None
             action = data.get('action')
             if action == 'set_container':
                 await websocket.send_json({'type': 'container', 'files': build_tree(str(CONTAINER))})
@@ -43,29 +48,41 @@ async def websocket_endpoint(websocket: WebSocket):
                 await _read_file(websocket, root, data['path'])
             elif action == 'rollback' and root and manager:
                 await _rollback(websocket, root, manager, data.get('turn_id'))
-            elif action == 'message' and root and manager:
+            elif action == 'message' and root and manager and not agent_task:
                 if await _start_turn(websocket, manager, root, data):
-                    pending = await agent_turn(
+                    agent_task = asyncio.create_task(
+                        agent_turn(
+                            websocket,
+                            client,
+                            manager,
+                            root,
+                            data['turn_id'],
+                            data.get('model', DEFAULT_MODEL),
+                        )
+                    )
+            elif action in {'approve', 'reject'} and pending and root and manager and not agent_task:
+                agent_task = asyncio.create_task(
+                    resolve_approval(
                         websocket,
                         client,
                         manager,
                         root,
-                        data['turn_id'],
-                        data.get('model', DEFAULT_MODEL),
+                        pending,
+                        action == 'approve',
                     )
-            elif action in {'approve', 'reject'} and pending and root and manager:
-                pending = await resolve_approval(
-                    websocket,
-                    client,
-                    manager,
-                    root,
-                    pending,
-                    action == 'approve',
                 )
+            elif action == 'stop':
+                await _stop_turn(websocket, manager, pending, agent_task)
+                pending, agent_task = None, None
     except WebSocketDisconnect:
         pass
+    except asyncio.CancelledError:
+        raise
     except Exception as exc:
         print(f'[websocket] error: {type(exc).__name__}: {exc}')
+    finally:
+        if agent_task and not agent_task.done():
+            agent_task.cancel()
 
 
 async def _start_turn(websocket, manager, root, data):
@@ -128,3 +145,15 @@ async def _send_history(websocket, root, manager):
         'messages': manager.load(),
         'rollback_turn_ids': _rollback_turn_ids(root),
     })
+
+
+async def _stop_turn(websocket, manager, pending, task):
+    if pending and manager:
+        cancel_pending(manager, pending)
+    if task and not task.done():
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    await websocket.send_json({'type': 'stopped'})

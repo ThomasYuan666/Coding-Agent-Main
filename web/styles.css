@@ -71,6 +71,8 @@ section { width: 460px; display: flex; flex-direction: column; border-left: 1px 
 #send { background: #28a745; color: white; }
 #send:hover:not(:disabled) { background: #218838; }
 #send:disabled { background: #6c757d; cursor: not-allowed; }
+#send.busy { background: #dc3545; }
+#send.busy:hover { background: #c82333; }
 .msg button { padding: 5px 12px; margin-left: 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; }
 .approval-actions { display: flex; gap: 8px; margin-top: 8px; }
 .approval-actions button { margin-left: 0; background: #fff; }

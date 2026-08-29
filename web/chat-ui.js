@@ -68,6 +68,7 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
   }
 
   function appendLiveSegment(type, text) {
+    if (liveSegment && liveSegment.dataset.type !== type) collapseThinking();
     if (!liveSegment || liveSegment.dataset.type !== type) {
       liveSegment = addMessage(
         type === 'content' ? 'agent' : 'reasoning',
@@ -85,7 +86,14 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
 
   function setBusy(value) {
     busy = value;
-    sendButton.disabled = value;
+    sendButton.disabled = false;
+    sendButton.textContent = value ? '停止' : '发送';
+    sendButton.classList.toggle('busy', value);
+  }
+
+  function collapseThinking() {
+    const item = liveSegment?.parentElement;
+    if (item?.classList.contains('reasoning')) item.classList.add('collapsed');
   }
 
   function handle(data) {
@@ -99,15 +107,22 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
     if (data.type === 'start') liveSegment = null;
     if (data.type === 'chunk') appendLiveSegment('content', data.content);
     if (data.type === 'approval') renderApproval(data);
-    if (data.type === 'end') { liveSegment = null; setBusy(false); }
+    if (data.type === 'end' || data.type === 'stopped') {
+      collapseThinking();
+      liveSegment = null;
+      setBusy(false);
+    }
     if (data.type === 'error') addMessage('tool', '错误', data.content);
     if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
     if (data.type === 'tool_call') {
+      collapseThinking();
+      liveSegment = null;
       addMessage('tool', `工具：${data.tool}`, `等待审批\n参数：${data.arguments || '{}'}`);
     }
   }
 
   function renderApproval(data) {
+    collapseThinking();
     liveSegment = null;
     const block = addMessage('tool', '需要确认', `${data.reason}\n${data.command}`);
     const actions = document.createElement('div');
@@ -150,7 +165,11 @@ export function createChatUI({ messages, input, modelSelect, imageStatus, form, 
 
   form.onsubmit = (event) => {
     event.preventDefault();
-    if (busy || !getRoot()) return;
+    if (busy) {
+      send({ action: 'stop' });
+      return;
+    }
+    if (!getRoot()) return;
     const text = input.value.trim();
     if (!text && !pendingImage) return;
     const content = pendingImage
