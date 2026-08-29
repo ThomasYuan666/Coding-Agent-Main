@@ -6,6 +6,9 @@ const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
 const editor = document.querySelector('#editor');
 const input = document.querySelector('#input');
+const modelSelect = document.querySelector('#model-select');
+const imageStatus = document.querySelector('#image-status');
+const sendButton = document.querySelector('#send');
 const codeEditor = CodeMirror.fromTextArea(editor, {
   lineNumbers: true,
   lineWrapping: false,
@@ -19,6 +22,8 @@ const codeEditor = CodeMirror.fromTextArea(editor, {
 });
 let currentRoot = '';
 let liveSegment = null;
+let pendingImage = null;
+let busy = false;
 const diffPanel = document.querySelector('#diff-panel');
 
 function renderDiff(changes) {
@@ -71,8 +76,19 @@ function addMessage(type, label, text = '', markdown = false, turnId = '') {
   item.className = `msg ${type}`;
   item.innerHTML = `<strong>${label}</strong><span></span>`;
   const content = item.querySelector('span');
-  content.dataset.raw = text;
-  if (markdown) content.innerHTML = renderMarkdown(text);
+  content.dataset.raw = typeof text === 'string' ? text : '';
+  if (Array.isArray(text)) {
+    text.forEach((part) => {
+      if (part.type === 'text') content.appendChild(document.createTextNode(part.text));
+      if (part.type === 'image_url' && part.image_url?.url) {
+        const image = document.createElement('img');
+        image.src = part.image_url.url;
+        image.alt = '用户粘贴的图片';
+        image.className = 'message-image';
+        content.appendChild(image);
+      }
+    });
+  } else if (markdown) content.innerHTML = renderMarkdown(text);
   else content.textContent = text;
   messages.appendChild(item);
   if (type === 'user' && turnId) {
@@ -118,6 +134,11 @@ function renderHistory(history) {
     button.onclick = () => send({ action: 'rollback', turn_id: message.turn_id });
     item.appendChild(button);
   });
+}
+
+function setBusy(value) {
+  busy = value;
+  sendButton.disabled = value;
 }
 
 function refreshCurrentWorkspace(tree) {
@@ -198,7 +219,8 @@ onMessage((data) => {
     card.appendChild(actions);
     data.type = 'handled';
   }
-  if (data.type === 'end') liveSegment = null;
+  if (data.type === 'end') { liveSegment = null; setBusy(false); }
+  if (data.type === 'error') addMessage('tool', '错误', data.content);
   if (data.type === 'tool') addMessage('tool', `工具：${data.tool}`, data.result);
   if (data.type === 'tool_call') {
     addMessage('tool', `工具：${data.tool}`, `等待审批\n参数：${data.arguments || '{}'}`);
@@ -221,7 +243,31 @@ files.addEventListener('click', (event) => {
     send({ action: 'read', path });
   }
 }, true);
-document.querySelector('#chat').onsubmit = (event) => { event.preventDefault(); const text = input.value.trim(); if (text && currentRoot) { send({ action: 'message', content: text }); input.value = ''; } };
+input.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    document.querySelector('#chat').requestSubmit();
+  }
+});
+input.addEventListener('paste', (event) => {
+  const image = [...(event.clipboardData?.items || [])].find((item) => item.type.startsWith('image/'));
+  if (!image) return;
+  const file = image.getAsFile();
+  if (!file || file.size > 32 * 1024 * 1024) { imageStatus.textContent = '图片超过 32 MiB'; return; }
+  event.preventDefault();
+  const reader = new FileReader();
+  reader.onload = () => { pendingImage = reader.result; imageStatus.textContent = `已粘贴图片 (${Math.round(file.size / 1024)} KiB)`; };
+  reader.readAsDataURL(file);
+});
+document.querySelector('#chat').onsubmit = (event) => {
+  event.preventDefault();
+  if (busy || !currentRoot) return;
+  const text = input.value.trim();
+  if (!text && !pendingImage) return;
+  const content = pendingImage ? [{ type: 'text', text }, { type: 'image_url', image_url: { url: pendingImage, detail: 'auto' } }] : text;
+  send({ action: 'message', content, model: modelSelect.value });
+  input.value = ''; pendingImage = null; imageStatus.textContent = ''; setBusy(true);
+};
 messages.addEventListener('click', (event) => {
   if (event.target.tagName === 'STRONG' && event.target.parentElement.classList.contains('reasoning')) {
     event.target.parentElement.classList.toggle('collapsed');

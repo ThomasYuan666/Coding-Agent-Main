@@ -32,11 +32,18 @@
   </main>
 
   <section>
+    <div id="chat-toolbar">
+      <select id="model-select" aria-label="选择模型">
+        <option value="deepseek-v4-flash">DeepSeek V4 Flash</option>
+        <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
+        <option value="deepseek-v4-flash-vision-exp">DeepSeek V4 Flash Vision</option>
+      </select>
+      <span id="image-status"></span>
+    </div>
     <div id="messages"></div>
     <form id="chat">
       <textarea id="input" placeholder="输入编程任务... (Shift+Enter换行)"></textarea>
       <button id="send" type="submit">发送</button>
-      <button id="stop" type="button" style="display:none;">停止</button>
     </form>
   </section>
 

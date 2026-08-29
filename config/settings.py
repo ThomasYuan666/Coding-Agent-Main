@@ -5,6 +5,12 @@ from pathlib import Path
 # settings.py -> config -> Coding-Agent-Main
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+MODEL_FLASH = "deepseek-v4-flash"
+MODEL_PRO = "deepseek-v4-pro"
+MODEL_VISION = "deepseek-v4-flash-vision-exp"
+AVAILABLE_MODELS = (MODEL_FLASH, MODEL_PRO, MODEL_VISION)
+DEFAULT_MODEL = MODEL_FLASH
+
 
 def _load_dotenv() -> None:
     """读取项目根目录的 .env；已有系统环境变量优先。"""
