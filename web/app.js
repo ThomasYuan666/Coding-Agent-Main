@@ -6,8 +6,37 @@ const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
 const editor = document.querySelector('#editor');
 const input = document.querySelector('#input');
+const codeEditor = CodeMirror.fromTextArea(editor, {
+  lineNumbers: true,
+  lineWrapping: false,
+  indentUnit: 4,
+  tabSize: 4,
+  autofocus: false,
+  extraKeys: {
+    'Ctrl-S': saveCurrentFile,
+    'Cmd-S': saveCurrentFile
+  }
+});
 let currentRoot = '';
 let liveSegment = null;
+
+function saveCurrentFile() {
+  if (!currentRoot || !editor.dataset.path) return;
+  fetch('/api/file', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ root: currentRoot, path: editor.dataset.path, content: codeEditor.getValue() })
+  });
+}
+
+function editorMode(path) {
+  const extension = path.split('.').pop().toLowerCase();
+  return ({
+    py: 'python', js: 'javascript', jsx: 'javascript', ts: 'javascript', tsx: 'javascript',
+    c: 'text/x-csrc', h: 'text/x-csrc', cpp: 'text/x-c++src', hpp: 'text/x-c++src',
+    java: 'text/x-java', html: 'xml', htm: 'xml', css: 'css', md: 'markdown'
+  })[extension] || null;
+}
 
 function renderMarkdown(text) {
   if (!window.marked) return text;
@@ -97,7 +126,13 @@ onMessage((data) => {
   if (data.type === 'container') renderFileTree(data.files, files);
   if (data.type === 'files') refreshCurrentWorkspace(data.files);
   if (data.type === 'root_set') document.querySelector('#workspace').textContent = `当前工作区：${data.root.split('\\').pop()}`;
-  if (data.type === 'file_content') { document.querySelector('#filename').textContent = data.path; editor.value = data.content; editor.dataset.path = data.path; }
+  if (data.type === 'file_content') {
+    document.querySelector('#filename').textContent = data.path;
+    editor.dataset.path = data.path;
+    codeEditor.setOption('mode', editorMode(data.path));
+    codeEditor.setValue(data.content);
+    codeEditor.clearHistory();
+  }
   if (data.type === 'user') addMessage('user', '你', data.content);
   if (data.type === 'reasoning') appendLiveSegment('reasoning', data.content);
   if (data.type === 'start') { liveSegment = null; }
@@ -125,7 +160,6 @@ files.addEventListener('click', (event) => {
     send({ action: 'read', path });
   }
 }, true);
-editor.onkeydown = (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); fetch('/api/file', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ root: currentRoot, path: editor.dataset.path, content: editor.value }) }); } };
 document.querySelector('#chat').onsubmit = (event) => { event.preventDefault(); const text = input.value.trim(); if (text && currentRoot) { send({ action: 'message', content: text }); input.value = ''; } };
 messages.addEventListener('click', (event) => {
   if (event.target.tagName === 'STRONG' && event.target.parentElement.classList.contains('reasoning')) {
