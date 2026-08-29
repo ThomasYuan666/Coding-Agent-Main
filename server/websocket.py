@@ -10,7 +10,7 @@ from .file_watcher import start as start_watcher, watch_loop
 from .llm import LLMClient
 from .path_utils import CONTAINER, resolve_root, safe_path
 from .rollback import RollbackManager
-from .context_manager import ContextManager, format_compression_prompt
+from .context_manager import ContextManager
 from config.settings import AVAILABLE_MODELS, CONTEXT_LIMIT, DEFAULT_MODEL, MODEL_VISION, get_api_key
 
 
@@ -148,11 +148,9 @@ async def _rollback(websocket, root, manager, turn_id, client):
     manager.save(manager.load()[:length])
     context = ContextManager(root)
     context.invalidate()
-    summary, messages, covered = context.compression_source(manager.load())
-    if messages:
+    if context.needs_initial_summary(manager.load()):
         await websocket.send_json({'type': 'context_status', 'status': 'compacting'})
-        content = await client.summarize(format_compression_prompt('', messages))
-        context.save_summary(content, covered)
+        await context.compact(manager.load(), client)
         await websocket.send_json({'type': 'context_status', 'status': 'ready'})
     await _send_history(websocket, root, manager)
     await websocket.send_json({'type': 'files', 'files': build_tree(root)})
@@ -161,13 +159,10 @@ async def _rollback(websocket, root, manager, turn_id, client):
 
 async def _compact(websocket, root, manager, client):
     context = ContextManager(root)
-    summary, messages, covered = context.compression_source(manager.load())
-    if not messages:
+    await websocket.send_json({'type': 'context_status', 'status': 'compacting'})
+    if not await context.compact(manager.load(), client):
         await websocket.send_json({'type': 'context_status', 'status': 'ready'})
         return
-    await websocket.send_json({'type': 'context_status', 'status': 'compacting'})
-    content = await client.summarize(format_compression_prompt(summary, messages))
-    context.save_summary(content, covered)
     await websocket.send_json({'type': 'context_status', 'status': 'ready'})
 
 

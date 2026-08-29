@@ -1,6 +1,6 @@
 import json
 import httpx
-from config.settings import DEFAULT_MODEL
+from config.settings import DEFAULT_MODEL, MODEL_VISION
 
 TOOLS = [
     {'type': 'function', 'function': {'name': 'read_file', 'description': '读取当前工作区内的文本文件', 'parameters': {'type': 'object', 'properties': {'path': {'type': 'string'}}, 'required': ['path']}}},
@@ -66,6 +66,24 @@ class LLMClient:
                 usage = event['usage']
         if not usage:
             raise RuntimeError('摘要请求未返回 usage')
+        return content
+
+    async def describe_image(self, content):
+        prompt = [{'role': 'user', 'content': content + [
+            {'type': 'text', 'text': '请用简洁的文字描述这张图片，供后续历史摘要使用。'}
+        ]}]
+        return await self._text_request(prompt, MODEL_VISION)
+
+    async def _text_request(self, messages, model):
+        content = ''
+        usage = None
+        async for event in self.stream_chat(messages, model, use_tools=False):
+            if event['type'] == 'content':
+                content += event['content']
+            elif event['type'] == 'usage':
+                usage = event['usage']
+        if not usage:
+            raise RuntimeError('文本请求未返回 usage')
         return content
 
 

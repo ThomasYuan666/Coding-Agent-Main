@@ -2,7 +2,7 @@ import json
 
 from .rollback import RollbackManager
 from .tools import apply_write, execute, prepare_write
-from .context_manager import ContextManager, format_compression_prompt
+from .context_manager import ContextManager
 from config.settings import CONTEXT_LIMIT
 
 
@@ -13,13 +13,10 @@ async def agent_turn(websocket, client, manager, root, turn_id, model):
         usage = None
         context = ContextManager(root)
         history = manager.load()
-        if context.needs_compaction(context.last_usage()):
-            summary, new_messages, covered = context.compression_source(history)
-            if new_messages:
-                await websocket.send_json({"type": "context_status", "status": "compacting"})
-                new_summary = await client.summarize(format_compression_prompt(summary, new_messages))
-                context.save_summary(new_summary, covered)
-                await websocket.send_json({"type": "context_status", "status": "ready"})
+        if context.needs_compaction(context.last_usage()) or context.needs_initial_summary(history):
+            await websocket.send_json({"type": "context_status", "status": "compacting"})
+            await context.compact(history, client)
+            await websocket.send_json({"type": "context_status", "status": "ready"})
         async for event in client.stream_chat(context.build(history), model):
             if event["type"] == "reasoning":
                 await websocket.send_json({"type": "reasoning", "content": event["content"]})

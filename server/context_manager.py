@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from config.settings import CONTEXT_LIMIT, CONTEXT_THRESHOLD, RECENT_ROUNDS, SUMMARY_TARGET
+from config.settings import CONTEXT_LIMIT, CONTEXT_THRESHOLD, RECENT_ROUNDS, SUMMARY_TARGET, DEFAULT_MODEL
 
 
 SYSTEM_PROMPT = (
@@ -51,6 +51,31 @@ class ContextManager:
 
     def needs_compaction(self, prompt_tokens):
         return prompt_tokens >= int(CONTEXT_LIMIT * CONTEXT_THRESHOLD)
+
+    def needs_initial_summary(self, history):
+        return not self.load_summary().get('content') and len(self._rounds(history)) > RECENT_ROUNDS
+
+    async def compact(self, history, client):
+        summary, messages, covered = self.compression_source(history)
+        if not messages:
+            return False
+        prepared = []
+        for message in messages:
+            content = message.get('content')
+            if isinstance(content, list):
+                parts = []
+                for part in content:
+                    if part.get('type') == 'text':
+                        parts.append(part.get('text', ''))
+                    elif part.get('type') == 'image_url':
+                        parts.append(f"[图片描述] {await client.describe_image(content)}")
+                        break
+                prepared.append({**message, 'content': '\n'.join(parts)})
+            else:
+                prepared.append(message)
+        content = await client.summarize(format_compression_prompt(summary, prepared), DEFAULT_MODEL)
+        self.save_summary(content, covered)
+        return True
 
     def compression_source(self, history):
         rounds = self._rounds(history)
