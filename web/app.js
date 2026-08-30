@@ -1,6 +1,6 @@
 import { connect, send, onMessage } from './websocket.js';
 import { createChatUI } from './chat-ui.js';
-import { createDiffUI } from './diff-ui.js';
+import { createDiffUI } from './diff-ui.js?v=3';
 import { createEditor } from './editor-ui.js';
 import { createWorkspaceUI } from './workspace-ui.js';
 import { createTaskUI } from './task-ui.js';

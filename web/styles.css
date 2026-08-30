@@ -39,6 +39,7 @@ main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; over
 .diff-line { white-space: pre; min-width: max-content; }
 .diff-line.added { color: #146c2e; background: #e8f5e9; }
 .diff-line.removed { color: #a61b1b; background: #ffebee; }
+.diff-unchanged { margin: 4px 0; padding: 6px 10px; color: #666; background: #f0f0f0; border-radius: 4px; font: 12px/1.4 system-ui, sans-serif; text-align: left; }
 
 section { width: 600px; flex: 0 0 600px; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid #ddd; background: #fafafa; }
 #chat-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 15px; border-bottom: 1px solid #ddd; background: #fff; }

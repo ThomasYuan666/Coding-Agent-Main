@@ -10,11 +10,10 @@ export function createDiffUI({ panel, send }) {
         button.classList.toggle('active', button.dataset.path === change.path);
       });
       preview.innerHTML = '';
-      change.lines.forEach((line) => {
-        const row = document.createElement('div');
-        row.className = `diff-line ${line.type}`;
-        row.textContent = `${prefix(line.type)} ${line.text}`;
-        preview.appendChild(row);
+      renderLines(preview, change.lines);
+      const firstChange = preview.querySelector('.diff-line.added, .diff-line.removed');
+      if (firstChange) requestAnimationFrame(() => {
+        preview.scrollTop = Math.max(0, firstChange.offsetTop - preview.clientHeight / 3);
       });
     };
 
@@ -40,4 +39,40 @@ export function createDiffUI({ panel, send }) {
 
 function prefix(type) {
   return type === 'added' ? '+' : type === 'removed' ? '-' : ' ';
+}
+
+function renderLines(container, lines, context = 3) {
+  const normalized = lines.map((line) => ({ ...line, type: line.type || 'same' }));
+  let index = 0;
+  while (index < normalized.length) {
+    if (normalized[index].type !== 'same') {
+      appendLine(container, normalized[index]);
+      index += 1;
+      continue;
+    }
+    const start = index;
+    while (index < normalized.length && normalized[index].type === 'same') index += 1;
+    const count = index - start;
+    if (count <= context * 2) {
+      for (let line = start; line < index; line += 1) appendLine(container, normalized[line]);
+    } else {
+      for (let line = start; line < start + context; line += 1) appendLine(container, normalized[line]);
+      appendHidden(container, count - context * 2);
+      for (let line = index - context; line < index; line += 1) appendLine(container, normalized[line]);
+    }
+  }
+}
+
+function appendLine(container, line) {
+  const row = document.createElement('div');
+  row.className = `diff-line ${line.type}`;
+  row.textContent = `${prefix(line.type)} ${line.text}`;
+  container.appendChild(row);
+}
+
+function appendHidden(container, count) {
+  const row = document.createElement('div');
+  row.className = 'diff-unchanged';
+  row.textContent = `${count} unchanged line${count === 1 ? '' : 's'}`;
+  container.appendChild(row);
 }
