@@ -2,9 +2,10 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
   let liveSegment = null;
   let pendingImage = null;
   const busyByWorkspace = new Map();
+  const taskByWorkspace = new Map();
 
   function workspaceKey() {
-    return getRoot() || '__none__';
+    return String(getRoot() || '__none__').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '__none__';
   }
 
   function isBusy() {
@@ -135,6 +136,13 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
   }
 
   function handle(data) {
+    if (data.type === 'agent_status' && data.workspace) {
+      taskByWorkspace.set(workspaceKeyFor(data.workspace), data.task_id || taskByWorkspace.get(workspaceKeyFor(data.workspace)));
+      if (data.status === 'running' || data.status === 'waiting_approval') busyByWorkspace.set(workspaceKeyFor(data.workspace), true);
+      if (data.status === 'completed' || data.status === 'failed') busyByWorkspace.set(workspaceKeyFor(data.workspace), false);
+      if (workspaceKeyFor(data.workspace) === workspaceKey()) setBusy(busyByWorkspace.get(workspaceKey()) || false);
+      return;
+    }
     if (data.type === 'history') {
       renderHistory(data.messages, data.rollback_turn_ids);
       return;
@@ -241,7 +249,7 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
   form.onsubmit = (event) => {
     event.preventDefault();
     if (isBusy()) {
-      send({ action: 'stop' });
+      send({ action: 'stop', workspace: getRoot(), task_id: taskByWorkspace.get(workspaceKey()) });
       return;
     }
     if (!getRoot()) return;
@@ -259,9 +267,13 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
 
   return { handle, setWorkspace: (root) => {
     if (!root) return;
-    busyByWorkspace.set(root, Boolean(busyByWorkspace.get(root)));
-    setBusy(Boolean(busyByWorkspace.get(root)));
+    busyByWorkspace.set(workspaceKey(), Boolean(busyByWorkspace.get(workspaceKey())));
+    setBusy(Boolean(busyByWorkspace.get(workspaceKey())));
   }};
+}
+
+function workspaceKeyFor(root) {
+  return String(root || '').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '__none__';
 }
 
 function renderMarkdown(text) {

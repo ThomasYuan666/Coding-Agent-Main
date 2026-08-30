@@ -1,6 +1,6 @@
 import { renderFileTree } from './filetree.js';
 
-export function createWorkspaceUI({ files, title, messages, send }) {
+export function createWorkspaceUI({ files, title, messages, send, onOpen }) {
   const rootName = 'workspace';
   let currentRoot = '';
   const statuses = new Map();
@@ -43,6 +43,7 @@ export function createWorkspaceUI({ files, title, messages, send }) {
     title.textContent = `当前工作区：${name}`;
     restoreSelection();
     if (notify) send({ action: 'set_root', root: currentRoot });
+    onOpen?.(currentRoot);
   }
 
   function setStatus(root, status) {
@@ -56,6 +57,14 @@ export function createWorkspaceUI({ files, title, messages, send }) {
     item.classList.toggle('agent-waiting', status === 'waiting_approval');
     item.classList.toggle('agent-failed', status === 'failed');
     item.classList.toggle('agent-completed', status === 'completed');
+  }
+
+  function firstFile() {
+    const item = findCurrentItem();
+    const file = item?.querySelector('li[data-type="file"]');
+    if (!file) return '';
+    const prefix = `${currentRoot.split('\\').pop()}\\`;
+    return file.dataset.path.startsWith(prefix) ? file.dataset.path.slice(prefix.length) : file.dataset.path;
   }
 
   files.addEventListener('click', (event) => {
@@ -86,6 +95,7 @@ export function createWorkspaceUI({ files, title, messages, send }) {
     open,
     setStatus,
     isCurrent: (workspace) => Boolean(workspace && currentRoot && workspace.endsWith(`\\${currentRoot}`)),
+    firstFile,
     getRoot: () => currentRoot
   };
 }

@@ -15,7 +15,7 @@ const taskUI = createTaskUI({
   toggle: document.querySelector('#tasks-toggle'),
   main: document.querySelector('main'),
   getRoot: () => workspaceUI?.getRoot(),
-  onWorkspace: (root) => workspaceUI.open(root)
+  onWorkspace: (root) => openWorkspace(root)
 });
 taskUI.showDashboard();
 
@@ -23,11 +23,13 @@ workspaceUI = createWorkspaceUI({
   files,
   title: document.querySelector('#workspace'),
   messages,
-  send
+  send,
+  onOpen: (root) => enterWorkspace(root)
 });
 const editorUI = createEditor({
   textarea: editorElement,
   filename: document.querySelector('#filename'),
+  tabs: document.querySelector('#editor-tabs'),
   getRoot: workspaceUI.getRoot
 });
 const chatUI = createChatUI({
@@ -54,10 +56,7 @@ onMessage((data) => {
   const currentEvent = !data.workspace || workspaceUI.isCurrent(data.workspace);
   if (currentEvent) chatUI.handle(data);
   if (data.type === 'root_set') {
-    workspaceUI.open(data.root, false);
-    chatUI.setWorkspace(data.root);
-    taskUI.showWorkspace();
-    taskUI.render();
+    openWorkspace(data.root, false);
   }
   if (data.type === 'container') {
     workspaceUI.renderContainer(data.files);
@@ -80,6 +79,21 @@ onMessage((data) => {
     taskUI.updateStatus(data.workspace, data.status, data.task_id);
   }
 });
+
+function openWorkspace(root, notify = true) {
+  workspaceUI.open(root, notify);
+}
+
+function enterWorkspace(root) {
+  taskUI.showWorkspace();
+  editorUI.setWorkspace(root);
+  chatUI.setWorkspace(root);
+  if (!editorUI.hasActive()) {
+    const path = workspaceUI.firstFile();
+    if (path) send({ action: 'read', path });
+  }
+  taskUI.render();
+}
 
 const connection = connect();
 connection.addEventListener('open', () => send({ action: 'set_container' }), { once: true });

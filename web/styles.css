@@ -25,7 +25,14 @@ main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; over
 main:not(.dashboard-mode) #workspace-task-panel { display: block; }
 main.dashboard-mode #filename,
 main.dashboard-mode #editor,
-main.dashboard-mode #diff-panel { display: none; }
+main.dashboard-mode #diff-panel,
+main.dashboard-mode #editor-tabs,
+main.dashboard-mode .CodeMirror { display: none; }
+main.dashboard-mode #workspace-task-panel { display: none; }
+main:not(.dashboard-mode) #task-panel { display: none; }
+#editor-tabs { display: flex; gap: 2px; overflow-x: auto; background: #252526; }
+#editor-tabs button { border: 0; border-right: 1px solid #3b3b3b; padding: 8px 12px; color: #bbb; background: #252526; cursor: pointer; white-space: nowrap; }
+#editor-tabs button.active { color: #fff; background: #1e1e1e; }
 main.dashboard-mode #tasks-toggle { display: none; }
 .task-card { margin-bottom: 10px; padding: 10px 12px; border: 1px solid #d9dee3; border-radius: 5px; background: #fff; }
 .task-card summary { cursor: pointer; font-weight: 600; }

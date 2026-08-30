@@ -65,11 +65,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     await session.start(data)
             elif action in {'approve', 'reject'}:
                 target = _target_session(scheduler, data.get('workspace') or root)
-                if target:
+                if target and (not data.get('task_id') or data.get('task_id') == target.task_id):
                     await target.approve(action == 'approve')
             elif action == 'stop':
                 target = _target_session(scheduler, data.get('workspace') or root)
-                if target:
+                if target and (not data.get('task_id') or data.get('task_id') == target.task_id):
                     await target.stop()
     except WebSocketDisconnect:
         pass
@@ -139,7 +139,7 @@ async def _read_file(websocket, root, path):
         target = safe_path(root, path)
         with open(target, encoding='utf-8') as file:
             content = file.read()
-        await websocket.send_json({'type': 'file_content', 'path': path, 'content': content})
+        await websocket.send_json({'type': 'file_content', 'workspace': root, 'path': path, 'content': content})
     except Exception as exc:
         await websocket.send_json({'type': 'error', 'content': str(exc)})
 
