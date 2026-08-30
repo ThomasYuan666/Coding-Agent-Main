@@ -22,6 +22,11 @@ main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; over
 #task-panel { display: none; flex: 1; overflow: auto; padding: 14px; background: #f7f8fa; }
 #task-panel.visible { display: grid; }
 #workspace-task-panel { display: none; flex: 0 0 auto; max-height: 38%; overflow: auto; padding: 12px 14px; border-bottom: 1px solid #ddd; background: #f8fafc; }
+#preview-panel { flex: 0 0 auto; width: min(820px, calc(100% - 24px)); height: 640px; margin: 8px 12px; border: 1px solid #d9dee3; background: #fff; overflow: auto; }
+#preview-panel[hidden] { display: none; }
+.preview-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid #ddd; font-size: 13px; }
+.preview-toolbar button { padding: 4px 9px; border: 1px solid #bbb; background: #fff; cursor: pointer; }
+#preview-panel iframe { display: block; width: 800px; height: 600px; border: 0; background: #fff; }
 main:not(.dashboard-mode) #workspace-task-panel { display: block; }
 main.dashboard-mode #filename,
 main.dashboard-mode #editor,
@@ -54,10 +59,10 @@ main.dashboard-mode #tasks-toggle { display: none; }
 .diff-toolbar strong { margin-right: auto; font-size: 13px; }
 .diff-toolbar button { padding: 5px 10px; border: 1px solid #bbb; border-radius: 3px; background: #fff; cursor: pointer; }
 .diff-toolbar button:first-of-type { background: #d8f3dc; border-color: #74c69d; }
-.diff-tabs { display: flex; gap: 2px; overflow-x: auto; padding: 6px 8px 0; }
-.diff-tabs button { padding: 5px 9px; border: 1px solid #ddd; background: #f4f4f4; cursor: pointer; white-space: nowrap; }
+.diff-tabs { display: flex; flex: 0 0 auto; min-height: 36px; align-items: flex-end; gap: 2px; overflow-x: auto; padding: 6px 8px 0; }
+.diff-tabs button { flex: 0 0 auto; min-height: 30px; padding: 5px 9px; border: 1px solid #ddd; background: #f4f4f4; cursor: pointer; white-space: nowrap; line-height: 18px; }
 .diff-tabs button.active { background: #fff; border-bottom-color: #fff; font-weight: 600; }
-.diff-preview { margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.5 Consolas, Monaco, monospace; }
+.diff-preview { flex: 1 1 auto; min-height: 0; margin: 0; padding: 8px 12px; overflow: auto; font: 12px/1.5 Consolas, Monaco, monospace; }
 .diff-line { white-space: pre; min-width: max-content; }
 .diff-line.added { color: #146c2e; background: #e8f5e9; }
 .diff-line.removed { color: #a61b1b; background: #ffebee; }

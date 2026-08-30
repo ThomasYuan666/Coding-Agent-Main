@@ -109,6 +109,13 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
             result = execute(name, args, root)
             manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
             await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})
+            if name in {"start_preview", "stop_preview"}:
+                await websocket.send_json({
+                    "type": "preview",
+                    "workspace": root,
+                    "status": result.get("preview_status", "stopped"),
+                    "url": result.get("preview_url", ""),
+                })
 
     if pending_items:
         pending = {"items": pending_items, "index": 0, "turn_id": turn_id, "model": model, "reasoning_effort": reasoning_effort}

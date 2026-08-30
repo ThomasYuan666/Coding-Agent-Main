@@ -4,10 +4,12 @@ import { createDiffUI } from './editor/diff-ui.js?v=3';
 import { createEditor } from './editor/editor-ui.js';
 import { createWorkspaceUI } from './workspace/workspace-ui.js';
 import { createTaskUI } from './tasks/task-ui.js';
+import { createPreviewUI } from './testing/preview-ui.js?v=4';
 
 const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
 const editorElement = document.querySelector('#editor');
+const previewUI = createPreviewUI({ panel: document.querySelector('#preview-panel') });
 let workspaceUI;
 const taskUI = createTaskUI({
   panel: document.querySelector('#task-panel'),
@@ -71,6 +73,10 @@ onMessage((data) => {
   if (currentEvent && data.type === 'diff') diffUI.show(data.files);
   if (currentEvent && data.type === 'diff_status') diffUI.hide();
   if (currentEvent && data.type === 'file_content') editorUI.loadFile(data);
+  if (currentEvent && data.type === 'preview') {
+    if (data.status === 'running' && data.url) previewUI.show(data.workspace, data.url);
+    if (data.status === 'stopped') previewUI.hide(data.workspace);
+  }
   if (data.type === 'tasks') taskUI.render(data.tasks);
   if (data.type === 'task_update' && data.task) {
     data.task.workspace = data.workspace;
@@ -90,6 +96,7 @@ function openWorkspace(root, notify = true) {
 }
 
 function enterWorkspace(root) {
+  previewUI.setWorkspace(root);
   taskUI.showWorkspace();
   editorUI.setWorkspace(root);
   chatUI.setWorkspace(root);

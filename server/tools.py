@@ -2,6 +2,7 @@ import os
 import subprocess
 import difflib
 from .workspace.path_utils import safe_path
+from .testing.preview_server import start as start_preview, stop as stop_preview
 
 def prepare_write(root, path, content):
     target = safe_path(root, path)
@@ -35,6 +36,10 @@ def execute(name, arguments, root, approved=False):
     if tool in {'write_file', 'delete_file', 'run_command'} and not approved:
         return {'needs_approval': True, 'command': action.get('command') or action.get('path', ''), 'reason': '此操作可能修改工作区'}
     try:
+        if tool == 'start_preview':
+            return start_preview(root)
+        if tool == 'stop_preview':
+            return stop_preview(root)
         if tool == 'read_file':
             with open(safe_path(root, action['path']), encoding='utf-8') as file:
                 return {'result': file.read()}

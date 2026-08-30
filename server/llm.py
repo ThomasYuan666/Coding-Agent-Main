@@ -10,6 +10,11 @@ TOOLS = [
 ]
 
 TOOLS.extend([
+    {'type': 'function', 'function': {'name': 'start_preview', 'description': '当工作区包含网页项目且需要查看运行效果时启动本地预览。', 'parameters': {'type': 'object', 'properties': {}}}},
+    {'type': 'function', 'function': {'name': 'stop_preview', 'description': '关闭当前工作区网页预览并停止本地服务。', 'parameters': {'type': 'object', 'properties': {}}}},
+])
+
+TOOLS.extend([
     {'type': 'function', 'function': {'name': 'create_plan', 'description': '为复杂编程任务创建计划，简单问答不需要调用；已有任务可追加修复计划', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}, 'goal': {'type': 'string'}, 'steps': {'type': 'array', 'items': {'type': 'string'}}}, 'required': ['goal', 'steps']}}},
     {'type': 'function', 'function': {'name': 'update_plan', 'description': '更新计划步骤状态', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}, 'step_id': {'type': 'string'}, 'status': {'type': 'string'}, 'reason': {'type': 'string'}}, 'required': ['task_id', 'step_id', 'status']}}},
     {'type': 'function', 'function': {'name': 'finish_task', 'description': '确认当前任务已经完成', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}}, 'required': ['task_id']}}},
