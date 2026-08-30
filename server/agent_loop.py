@@ -1,4 +1,5 @@
 import json
+import asyncio
 from .rollback import RollbackManager
 from .tools import apply_write, execute, prepare_write
 from .context_manager import ContextManager
@@ -62,6 +63,9 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
     pending_items = []
     task_manager = TaskManager(root)
 
+    read_calls = [item for item in parsed_calls if item[1] == 'read_file']
+    read_results = await _read_files_parallel(websocket, root, read_calls)
+
     write_calls = [item for item in parsed_calls if item[1] == "write_file"]
     if write_calls:
         changes = [prepare_write(root, args["path"], args["content"]) for _, _, args in write_calls]
@@ -96,7 +100,7 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
             await websocket.send_json({'type': 'task_update', 'task': result})
             continue
         if name == "read_file":
-            result = execute(name, args, root)
+            result = read_results[call['id']]
             manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
             await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})
         elif name in {"delete_file", "run_command"}:
@@ -111,6 +115,21 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
         await _show_pending(websocket, root, pending_items[0])
         return pending
     return await agent_turn(websocket, client, manager, root, turn_id, model, reasoning_effort)
+
+
+async def _read_files_parallel(websocket, root, calls):
+    if not calls:
+        return {}
+    for _, name, args in calls:
+        await websocket.send_json({
+            'type': 'tool_call',
+            'tool': name,
+            'arguments': json.dumps(args, ensure_ascii=False),
+        })
+    loop = asyncio.get_running_loop()
+    futures = [loop.run_in_executor(None, execute, name, args, root) for _, name, args in calls]
+    results = await asyncio.gather(*futures)
+    return {call['id']: result for (call, _, _), result in zip(calls, results)}
 
 
 async def resolve_approval(websocket, client, manager, root, pending, approved):
