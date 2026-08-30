@@ -3,14 +3,14 @@ import uuid
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from .file_ops import build_tree
-from .file_watcher import start as start_watcher, watch_loop
-from .llm import LLMClient
-from .path_utils import CONTAINER, resolve_root, safe_path
-from .rollback import RollbackManager
-from .context_manager import ContextManager
-from .task_manager import TaskManager
-from .task_scheduler import TaskScheduler
+from ..workspace.file_ops import build_tree
+from ..workspace.file_watcher import start as start_watcher, watch_loop
+from ..llm import LLMClient
+from ..workspace.path_utils import CONTAINER, resolve_root, safe_path
+from ..context.rollback import RollbackManager
+from ..context.context_manager import ContextManager
+from ..agent.task_manager import TaskManager
+from ..agent.task_scheduler import TaskScheduler
 from config.settings import AVAILABLE_MODELS, CONTEXT_LIMIT, DEFAULT_MODEL, DEFAULT_REASONING, MODEL_VISION, REASONING_LEVELS, get_api_key
 
 

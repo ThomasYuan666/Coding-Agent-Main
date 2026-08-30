@@ -1,3 +1,5 @@
+import { workspaceName } from '../workspace/workspace-utils.js';
+
 export function createChatUI({ messages, input, modelSelect, reasoningSelect, imageStatus, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
   let liveSegment = null;
   let pendingImage = null;
@@ -5,7 +7,7 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
   const taskByWorkspace = new Map();
 
   function workspaceKey() {
-    return String(getRoot() || '__none__').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '__none__';
+    return workspaceName(getRoot()) || '__none__';
   }
 
   function isBusy() {
@@ -137,10 +139,11 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
 
   function handle(data) {
     if (data.type === 'agent_status' && data.workspace) {
-      taskByWorkspace.set(workspaceKeyFor(data.workspace), data.task_id || taskByWorkspace.get(workspaceKeyFor(data.workspace)));
-      if (data.status === 'running' || data.status === 'waiting_approval') busyByWorkspace.set(workspaceKeyFor(data.workspace), true);
-      if (data.status === 'completed' || data.status === 'failed') busyByWorkspace.set(workspaceKeyFor(data.workspace), false);
-      if (workspaceKeyFor(data.workspace) === workspaceKey()) setBusy(busyByWorkspace.get(workspaceKey()) || false);
+      const eventWorkspace = workspaceName(data.workspace) || '__none__';
+      taskByWorkspace.set(eventWorkspace, data.task_id || taskByWorkspace.get(eventWorkspace));
+      if (data.status === 'running' || data.status === 'waiting_approval') busyByWorkspace.set(eventWorkspace, true);
+      if (data.status === 'completed' || data.status === 'failed') busyByWorkspace.set(eventWorkspace, false);
+      if (eventWorkspace === workspaceKey()) setBusy(busyByWorkspace.get(workspaceKey()) || false);
       return;
     }
     if (data.type === 'history') {
@@ -270,10 +273,6 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
     busyByWorkspace.set(workspaceKey(), Boolean(busyByWorkspace.get(workspaceKey())));
     setBusy(Boolean(busyByWorkspace.get(workspaceKey())));
   }};
-}
-
-function workspaceKeyFor(root) {
-  return String(root || '').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '__none__';
 }
 
 function renderMarkdown(text) {

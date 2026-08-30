@@ -1,8 +1,8 @@
 import json
 import asyncio
-from .rollback import RollbackManager
-from .tools import apply_write, execute, prepare_write
-from .context_manager import ContextManager
+from ..context.rollback import RollbackManager
+from ..tools import apply_write, execute, prepare_write
+from ..context.context_manager import ContextManager
 from .task_manager import TaskManager
 from config.settings import CONTEXT_LIMIT
 

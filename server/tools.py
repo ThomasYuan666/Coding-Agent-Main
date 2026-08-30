@@ -1,7 +1,7 @@
 import os
 import subprocess
 import difflib
-from .path_utils import safe_path
+from .workspace.path_utils import safe_path
 
 def prepare_write(root, path, content):
     target = safe_path(root, path)

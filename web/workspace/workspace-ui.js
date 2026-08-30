@@ -1,10 +1,10 @@
 import { renderFileTree } from './filetree.js';
+import { workspaceName, sameWorkspace } from './workspace-utils.js';
 
 export function createWorkspaceUI({ files, title, send, onOpen }) {
   const rootName = 'workspace';
   let currentRoot = '';
   const statuses = new Map();
-  const workspaceKey = (root) => String(root || '').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '';
 
   function refresh(tree) {
     if (!currentRoot) return;
@@ -21,7 +21,7 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
   }
 
   function findCurrentItem() {
-    const name = currentRoot.split('\\').pop();
+    const name = workspaceName(currentRoot);
     return [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
       .find((node) => node.dataset.path === name);
   }
@@ -38,7 +38,7 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
   }
 
   function open(nameOrRoot, notify = true) {
-    const name = String(nameOrRoot || '').replace(/\//g, '\\').split('\\').filter(Boolean).pop();
+    const name = workspaceName(nameOrRoot);
     if (!name) return;
     currentRoot = `${rootName}\\${name}`;
     title.textContent = `当前工作区：${name}`;
@@ -48,11 +48,11 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
   }
 
   function setStatus(root, status) {
-    const name = workspaceKey(root);
+    const name = workspaceName(root);
+    statuses.set(name, status);
     const item = [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
       .find((node) => node.dataset.path === name);
     if (!item) return;
-    statuses.set(name, status);
     item.dataset.agentStatus = status;
     item.classList.toggle('agent-running', status === 'running');
     item.classList.toggle('agent-waiting', status === 'waiting_approval');
@@ -64,7 +64,7 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
     const item = findCurrentItem();
     const file = item?.querySelector('li[data-type="file"]');
     if (!file) return '';
-    const prefix = `${currentRoot.split('\\').pop()}\\`;
+    const prefix = `${workspaceName(currentRoot)}\\`;
     return file.dataset.path.startsWith(prefix) ? file.dataset.path.slice(prefix.length) : file.dataset.path;
   }
 
@@ -78,7 +78,7 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
     }
     if (item.dataset.type === 'file' && currentRoot) {
       event.stopImmediatePropagation();
-      const prefix = `${currentRoot.split('\\').pop()}\\`;
+      const prefix = `${workspaceName(currentRoot)}\\`;
       const path = item.dataset.path.startsWith(prefix)
         ? item.dataset.path.slice(prefix.length)
         : item.dataset.path;
@@ -95,7 +95,7 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
     refresh,
     open,
     setStatus,
-    isCurrent: (workspace) => Boolean(workspace && currentRoot && workspaceKey(workspace) === workspaceKey(currentRoot)),
+    isCurrent: (workspace) => sameWorkspace(workspace, currentRoot),
     firstFile,
     getRoot: () => currentRoot
   };

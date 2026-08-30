@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from .path_utils import safe_path
+from ..workspace.path_utils import safe_path
 
 class RollbackManager:
     def __init__(self, root):

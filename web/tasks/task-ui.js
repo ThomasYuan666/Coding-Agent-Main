@@ -1,3 +1,5 @@
+import { workspaceName } from '../workspace/workspace-utils.js';
+
 export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWorkspace }) {
   let tasks = [];
   const statuses = new Map();
@@ -20,7 +22,7 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
       if (!task.workspace) return;
       task.workspace = String(task.workspace).replace(/\//g, '\\');
       taskById.set(task.task_id, task);
-      const name = task.workspace.split('\\').filter(Boolean).pop();
+      const name = workspaceName(task.workspace);
       workspaces.add(name);
       workspaceRoots.set(name, task.workspace);
     });
@@ -28,7 +30,7 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
     panel.innerHTML = '';
     const groups = new Map();
     tasks.forEach((task) => {
-      const key = task.workspace ? task.workspace.split('\\').filter(Boolean).pop() : '';
+      const key = workspaceName(task.workspace);
       if (!key) return;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(task);
@@ -37,7 +39,7 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
     groups.forEach((workspaceTasks, workspace) => {
       const card = document.createElement('article');
       card.className = 'workspace-card';
-      const name = workspace.split('\\').pop();
+      const name = workspaceName(workspace);
       const heading = document.createElement('button');
       heading.className = 'workspace-card-header';
       heading.textContent = `${name} · ${statuses.get(workspace) || 'idle'}`;
@@ -57,15 +59,15 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
     if (!detailPanel) return;
     detailPanel.innerHTML = '';
     const root = getRoot?.();
-    const currentName = root ? root.split('\\').pop() : '';
-    const current = tasks.filter((task) => task.workspace && task.workspace.split('\\').pop() === currentName);
+    const currentName = workspaceName(root);
+    const current = tasks.filter((task) => task.workspace && workspaceName(task.workspace) === currentName);
     current.forEach((task) => {
       const card = document.createElement('details');
       card.className = 'task-card';
       card.open = task.status !== 'completed';
       const summary = document.createElement('summary');
       const runtime = statuses.get(task.workspace) || statuses.get(currentName);
-      summary.textContent = `${task.workspace ? task.workspace.split('\\').pop() + ' · ' : ''}${task.goal} · ${runtime || task.status}`;
+      summary.textContent = `${task.workspace ? workspaceName(task.workspace) + ' · ' : ''}${task.goal} · ${runtime || task.status}`;
       card.appendChild(summary);
       (task.plans || []).forEach((plan) => {
         const block = document.createElement('details');
@@ -86,12 +88,12 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
     });
   }
   return { render, setWorkspaces(items) {
-    (items || []).filter((item) => item.type === 'folder').forEach((item) => workspaces.add(item.path.split('\\').filter(Boolean).pop()));
+    (items || []).filter((item) => item.type === 'folder').forEach((item) => workspaces.add(workspaceName(item.path)));
     render();
   }, showDashboard, showWorkspace, updateStatus(workspace, status, taskId) {
     if (!workspace) return;
     const normalized = String(workspace).replace(/\//g, '\\');
-    const name = normalized.split('\\').filter(Boolean).pop();
+    const name = workspaceName(normalized);
     statuses.set(normalized, status);
     statuses.set(name, status);
     workspaces.add(name);

@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 from .agent_loop import agent_turn, cancel_pending, resolve_approval
-from .conversation import ConversationManager
+from ..context.conversation import ConversationManager
 from .task_manager import TaskManager
 
 

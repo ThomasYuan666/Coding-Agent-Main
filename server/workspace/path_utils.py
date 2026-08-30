@@ -1,7 +1,8 @@
 import os
 from pathlib import Path
 
-CONTAINER = Path(__file__).resolve().parents[2] / 'workspace'
+# path_utils.py -> workspace -> server -> Coding-Agent-Main -> project root
+CONTAINER = Path(__file__).resolve().parents[3] / 'workspace'
 
 def safe_path(root, relative_path):
     base = os.path.realpath(root)
