@@ -1,9 +1,10 @@
 import { renderFileTree } from './filetree.js';
 
-export function createWorkspaceUI({ files, title, messages, send, onOpen }) {
+export function createWorkspaceUI({ files, title, send, onOpen }) {
   const rootName = 'workspace';
   let currentRoot = '';
   const statuses = new Map();
+  const workspaceKey = (root) => String(root || '').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '';
 
   function refresh(tree) {
     if (!currentRoot) return;
@@ -47,7 +48,7 @@ export function createWorkspaceUI({ files, title, messages, send, onOpen }) {
   }
 
   function setStatus(root, status) {
-    const name = root ? root.split('\\').pop() : '';
+    const name = workspaceKey(root);
     const item = [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
       .find((node) => node.dataset.path === name);
     if (!item) return;
@@ -94,7 +95,7 @@ export function createWorkspaceUI({ files, title, messages, send, onOpen }) {
     refresh,
     open,
     setStatus,
-    isCurrent: (workspace) => Boolean(workspace && currentRoot && workspace.endsWith(`\\${currentRoot}`)),
+    isCurrent: (workspace) => Boolean(workspace && currentRoot && workspaceKey(workspace) === workspaceKey(currentRoot)),
     firstFile,
     getRoot: () => currentRoot
   };

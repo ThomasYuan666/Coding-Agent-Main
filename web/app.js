@@ -22,7 +22,6 @@ taskUI.showDashboard();
 workspaceUI = createWorkspaceUI({
   files,
   title: document.querySelector('#workspace'),
-  messages,
   send,
   onOpen: (root) => enterWorkspace(root)
 });
@@ -56,13 +55,19 @@ onMessage((data) => {
   const currentEvent = !data.workspace || workspaceUI.isCurrent(data.workspace);
   if (currentEvent) chatUI.handle(data);
   if (data.type === 'root_set') {
-    openWorkspace(data.root, false);
+    send({ action: 'files' });
   }
   if (data.type === 'container') {
     workspaceUI.renderContainer(data.files);
     taskUI.setWorkspaces(data.files);
   }
-  if (data.type === 'files') workspaceUI.refresh(data.files);
+  if (data.type === 'files' && (!data.workspace || workspaceUI.isCurrent(data.workspace))) {
+    workspaceUI.refresh(data.files);
+    if (!editorUI.hasActive()) {
+      const path = workspaceUI.firstFile();
+      if (path) send({ action: 'read', path });
+    }
+  }
   if (currentEvent && data.type === 'diff') diffUI.show(data.files);
   if (currentEvent && data.type === 'diff_status') diffUI.hide();
   if (currentEvent && data.type === 'file_content') editorUI.loadFile(data);
@@ -88,10 +93,6 @@ function enterWorkspace(root) {
   taskUI.showWorkspace();
   editorUI.setWorkspace(root);
   chatUI.setWorkspace(root);
-  if (!editorUI.hasActive()) {
-    const path = workspaceUI.firstFile();
-    if (path) send({ action: 'read', path });
-  }
   taskUI.render();
 }
 

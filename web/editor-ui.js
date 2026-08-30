@@ -2,21 +2,23 @@ export function createEditor({ textarea, filename, tabs, getRoot }) {
   const editor = CodeMirror.fromTextArea(textarea, { lineNumbers: true, lineWrapping: false, indentUnit: 4, tabSize: 4, extraKeys: { 'Ctrl-S': save, 'Cmd-S': save } });
   const workspaces = new Map();
   let currentWorkspace = '', activePath = '';
+  const workspaceKey = (root) => String(root || '').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '';
   const state = () => { if (!workspaces.has(currentWorkspace)) workspaces.set(currentWorkspace, { files: new Map(), active: '' }); return workspaces.get(currentWorkspace); };
   function setWorkspace(root) {
-    currentWorkspace = String(root || '').replace(/\//g, '\\');
+    currentWorkspace = workspaceKey(root);
     const current = state(); activePath = current.active || '';
     editor.setValue(activePath && current.files.has(activePath) ? current.files.get(activePath) : '');
+    editor.clearHistory();
     filename.textContent = activePath || '未选择文件'; renderTabs();
   }
   function loadFile(data) {
-    if (data.workspace && data.workspace.split('\\').pop() !== currentWorkspace.split('\\').pop()) return;
+    if (data.workspace && workspaceKey(data.workspace) !== currentWorkspace) return;
     const current = state(); activePath = data.path; current.active = activePath; current.files.set(activePath, data.content);
     editor.setOption('mode', modeFor(activePath)); editor.setValue(data.content); editor.clearHistory(); filename.textContent = activePath; renderTabs();
   }
   function activate(path) {
     const current = state(); current.files.set(activePath, editor.getValue()); activePath = path; current.active = path;
-    editor.setOption('mode', modeFor(path)); editor.setValue(current.files.get(path)); editor.clearHistory(); filename.textContent = path; renderTabs();
+    editor.setOption('mode', modeFor(path)); editor.setValue(current.files.get(path) || ''); editor.clearHistory(); filename.textContent = path; renderTabs();
   }
   function renderTabs() {
     if (!tabs) return; tabs.innerHTML = '';

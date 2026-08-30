@@ -48,7 +48,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_json({'type': 'root_set', 'root': root})
                     await _send_history(websocket, session)
             elif action == 'files' and root:
-                await websocket.send_json({'type': 'files', 'files': build_tree(root)})
+                await websocket.send_json({'type': 'files', 'workspace': root, 'files': build_tree(root)})
             elif action == 'read' and root:
                 await _read_file(websocket, root, data['path'])
             elif action == 'rollback' and root:
@@ -157,7 +157,7 @@ async def _rollback(websocket, session, turn_id, client):
         await context.compact(manager.load(), client)
         await websocket.send_json({'type': 'context_status', 'status': 'ready'})
     await _send_history(websocket, session)
-    await websocket.send_json({'type': 'files', 'files': build_tree(root)})
+    await websocket.send_json({'type': 'files', 'workspace': root, 'files': build_tree(root)})
     await websocket.send_json({'type': 'rollback_done', 'turn_id': turn_id})
 
 

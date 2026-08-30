@@ -39,4 +39,8 @@ async def watch_loop(websocket, container, state, queue):
             queue.get_nowait()
         await websocket.send_json({'type': 'container', 'files': build_tree(str(container))})
         if state.get('root'):
-            await websocket.send_json({'type': 'files', 'files': build_tree(state['root'])})
+            await websocket.send_json({
+                'type': 'files',
+                'workspace': state['root'],
+                'files': build_tree(state['root']),
+            })
