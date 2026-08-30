@@ -1,11 +1,19 @@
 export function createChatUI({ messages, input, modelSelect, reasoningSelect, imageStatus, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
   let liveSegment = null;
   let pendingImage = null;
-  let busy = false;
+  const busyByWorkspace = new Map();
+
+  function workspaceKey() {
+    return getRoot() || '__none__';
+  }
+
+  function isBusy() {
+    return Boolean(busyByWorkspace.get(workspaceKey()));
+  }
 
   if (compactButton) {
     compactButton.onclick = () => {
-      if (!getRoot() || busy) return;
+      if (!getRoot() || isBusy()) return;
       compactButton.disabled = true;
       send({ action: 'compact' });
     };
@@ -115,7 +123,7 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
   }
 
   function setBusy(value) {
-    busy = value;
+    busyByWorkspace.set(workspaceKey(), value);
     sendButton.disabled = false;
     sendButton.textContent = value ? '停止' : '发送';
     sendButton.classList.toggle('busy', value);
@@ -192,7 +200,7 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
         actions.textContent = action === 'approve' ? '已允许，正在执行...' : '已拒绝，正在通知 Agent...';
         collapsePendingToolCards();
         card.classList.add('collapsed');
-        send({ action });
+        send({ action, workspace: data.workspace, task_id: data.task_id });
       };
       actions.appendChild(button);
     });
@@ -232,7 +240,7 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
 
   form.onsubmit = (event) => {
     event.preventDefault();
-    if (busy) {
+    if (isBusy()) {
       send({ action: 'stop' });
       return;
     }
@@ -249,7 +257,11 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
     setBusy(true);
   };
 
-  return { handle };
+  return { handle, setWorkspace: (root) => {
+    if (!root) return;
+    busyByWorkspace.set(root, Boolean(busyByWorkspace.get(root)));
+    setBusy(Boolean(busyByWorkspace.get(root)));
+  }};
 }
 
 function renderMarkdown(text) {

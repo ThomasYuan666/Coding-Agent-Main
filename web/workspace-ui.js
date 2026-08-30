@@ -3,6 +3,7 @@ import { renderFileTree } from './filetree.js';
 export function createWorkspaceUI({ files, title, messages, send }) {
   const rootName = 'workspace';
   let currentRoot = '';
+  const statuses = new Map();
 
   function refresh(tree) {
     if (!currentRoot) return;
@@ -35,12 +36,26 @@ export function createWorkspaceUI({ files, title, messages, send }) {
     });
   }
 
-  function select(name) {
+  function open(nameOrRoot, notify = true) {
+    const name = String(nameOrRoot || '').replace(/\//g, '\\').split('\\').filter(Boolean).pop();
+    if (!name) return;
     currentRoot = `${rootName}\\${name}`;
     title.textContent = `当前工作区：${name}`;
     restoreSelection();
-    messages.innerHTML = '';
-    send({ action: 'set_root', root: currentRoot });
+    if (notify) send({ action: 'set_root', root: currentRoot });
+  }
+
+  function setStatus(root, status) {
+    const name = root ? root.split('\\').pop() : '';
+    const item = [...files.querySelectorAll(':scope > ul > li[data-type="folder"]')]
+      .find((node) => node.dataset.path === name);
+    if (!item) return;
+    statuses.set(name, status);
+    item.dataset.agentStatus = status;
+    item.classList.toggle('agent-running', status === 'running');
+    item.classList.toggle('agent-waiting', status === 'waiting_approval');
+    item.classList.toggle('agent-failed', status === 'failed');
+    item.classList.toggle('agent-completed', status === 'completed');
   }
 
   files.addEventListener('click', (event) => {
@@ -48,7 +63,7 @@ export function createWorkspaceUI({ files, title, messages, send }) {
     if (!item) return;
     if (item.dataset.type === 'folder' && item.parentElement === files.querySelector('ul')) {
       event.stopImmediatePropagation();
-      select(item.dataset.path);
+      open(item.dataset.path);
       return;
     }
     if (item.dataset.type === 'file' && currentRoot) {
@@ -65,8 +80,12 @@ export function createWorkspaceUI({ files, title, messages, send }) {
     renderContainer: (tree) => {
       renderFileTree(tree, files);
       restoreSelection();
+      statuses.forEach((status, name) => setStatus(`${rootName}\\${name}`, status));
     },
     refresh,
+    open,
+    setStatus,
+    isCurrent: (workspace) => Boolean(workspace && currentRoot && workspace.endsWith(`\\${currentRoot}`)),
     getRoot: () => currentRoot
   };
 }

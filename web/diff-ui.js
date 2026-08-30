@@ -1,4 +1,4 @@
-export function createDiffUI({ panel, send }) {
+export function createDiffUI({ panel, send, getRoot }) {
   function show(changes) {
     panel.hidden = false;
     panel.innerHTML = '<div class="diff-toolbar"><strong>Pending changes</strong><button data-action="approve">Accept all</button><button data-action="reject">Reject all</button></div><div class="diff-tabs"></div><pre class="diff-preview"></pre>';
@@ -25,8 +25,8 @@ export function createDiffUI({ panel, send }) {
       tabs.appendChild(tab);
     });
     if (changes.length) render(changes[0]);
-    panel.querySelector('[data-action="approve"]').onclick = () => send({ action: 'approve' });
-    panel.querySelector('[data-action="reject"]').onclick = () => send({ action: 'reject' });
+    panel.querySelector('[data-action="approve"]').onclick = () => send({ action: 'approve', workspace: getRoot?.() });
+    panel.querySelector('[data-action="reject"]').onclick = () => send({ action: 'reject', workspace: getRoot?.() });
   }
 
   function hide() {

@@ -8,9 +8,18 @@ import { createTaskUI } from './task-ui.js';
 const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
 const editorElement = document.querySelector('#editor');
-const taskUI = createTaskUI({ panel: document.querySelector('#task-panel'), toggle: document.querySelector('#tasks-toggle') });
+let workspaceUI;
+const taskUI = createTaskUI({
+  panel: document.querySelector('#task-panel'),
+  detailPanel: document.querySelector('#workspace-task-panel'),
+  toggle: document.querySelector('#tasks-toggle'),
+  main: document.querySelector('main'),
+  getRoot: () => workspaceUI?.getRoot(),
+  onWorkspace: (root) => workspaceUI.open(root)
+});
+taskUI.showDashboard();
 
-const workspaceUI = createWorkspaceUI({
+workspaceUI = createWorkspaceUI({
   files,
   title: document.querySelector('#workspace'),
   messages,
@@ -37,18 +46,39 @@ const chatUI = createChatUI({
 });
 const diffUI = createDiffUI({
   panel: document.querySelector('#diff-panel'),
-  send
+  send,
+  getRoot: workspaceUI.getRoot
 });
 
 onMessage((data) => {
-  chatUI.handle(data);
-  if (data.type === 'container') workspaceUI.renderContainer(data.files);
+  const currentEvent = !data.workspace || workspaceUI.isCurrent(data.workspace);
+  if (currentEvent) chatUI.handle(data);
+  if (data.type === 'root_set') {
+    workspaceUI.open(data.root, false);
+    chatUI.setWorkspace(data.root);
+    taskUI.showWorkspace();
+    taskUI.render();
+  }
+  if (data.type === 'container') {
+    workspaceUI.renderContainer(data.files);
+    taskUI.setWorkspaces(data.files);
+  }
   if (data.type === 'files') workspaceUI.refresh(data.files);
-  if (data.type === 'diff') diffUI.show(data.files);
-  if (data.type === 'diff_status') diffUI.hide();
-  if (data.type === 'file_content') editorUI.loadFile(data);
+  if (currentEvent && data.type === 'diff') diffUI.show(data.files);
+  if (currentEvent && data.type === 'diff_status') diffUI.hide();
+  if (currentEvent && data.type === 'file_content') editorUI.loadFile(data);
   if (data.type === 'tasks') taskUI.render(data.tasks);
-  if (data.type === 'task_update') taskUI.update(data.task);
+  if (data.type === 'task_update' && data.task) {
+    data.task.workspace = data.workspace;
+    taskUI.update(data.task);
+  }
+  if (data.type === 'workspace_statuses') {
+    data.items.forEach((item) => workspaceUI.setStatus(item.workspace, item.status));
+  }
+  if (data.type === 'agent_status') {
+    workspaceUI.setStatus(data.workspace, data.status);
+    taskUI.updateStatus(data.workspace, data.status, data.task_id);
+  }
 });
 
 const connection = connect();

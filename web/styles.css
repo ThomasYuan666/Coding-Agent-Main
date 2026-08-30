@@ -4,20 +4,35 @@ body { display: flex; height: 100vh; font-family: system-ui, -apple-system, sans
 aside { width: 250px; flex: 0 0 250px; min-width: 0; background: #f5f5f5; padding: 15px; border-right: 1px solid #ddd; display: flex; flex-direction: column; overflow: hidden; }
 aside h3 { font-size: 14px; margin-bottom: 10px; color: #333; }
 aside > ul { list-style: none; flex: 1; overflow-y: auto; min-height: 0; }
+#workspace-task-panel-old { display: none; }
 aside ul ul { list-style: none; }
 aside li { padding: 8px; cursor: pointer; font-size: 13px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 aside li:hover { background: #e0e0e0; }
 aside li.active { background: #cfe8ff; color: #075a9c; font-weight: 600; }
 aside li.folder { font-weight: 500; }
 aside li.file { font-weight: normal; }
+aside li.agent-running::after { content: ' 运行中'; color: #1976d2; font-size: 11px; }
+aside li.agent-waiting::after { content: ' 待审批'; color: #b26a00; font-size: 11px; }
+aside li.agent-failed::after { content: ' 失败'; color: #b42318; font-size: 11px; }
+aside li.agent-completed::after { content: ' 已完成'; color: #237a3b; font-size: 11px; }
 
 
 main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 #tasks-toggle { align-self: flex-end; margin: 6px 12px 0; padding: 4px 9px; border: 1px solid #bbb; border-radius: 3px; background: #fff; cursor: pointer; }
 #task-panel { display: none; flex: 1; overflow: auto; padding: 14px; background: #f7f8fa; }
-#task-panel.visible { display: block; }
+#task-panel.visible { display: grid; }
+#workspace-task-panel { display: none; flex: 0 0 auto; max-height: 38%; overflow: auto; padding: 12px 14px; border-bottom: 1px solid #ddd; background: #f8fafc; }
+main:not(.dashboard-mode) #workspace-task-panel { display: block; }
+main.dashboard-mode #filename,
+main.dashboard-mode #editor,
+main.dashboard-mode #diff-panel { display: none; }
+main.dashboard-mode #tasks-toggle { display: none; }
 .task-card { margin-bottom: 10px; padding: 10px 12px; border: 1px solid #d9dee3; border-radius: 5px; background: #fff; }
 .task-card summary { cursor: pointer; font-weight: 600; }
+.workspace-card { padding: 18px; border: 1px solid #dfe3e8; border-radius: 8px; background: #fff; }
+.workspace-card-header { width: 100%; padding: 0; border: 0; background: transparent; text-align: left; font-size: 16px; font-weight: 650; cursor: pointer; }
+.workspace-card-task { margin-top: 10px; color: #667085; font-size: 13px; }
+#task-panel.visible { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); align-content: start; gap: 14px; }
 .plan-block { margin-top: 10px; padding-left: 8px; border-left: 2px solid #d9dee3; }
 .plan-step { padding: 4px 0; font-size: 13px; }
 .plan-step.completed { color: #237a3b; }

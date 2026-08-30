@@ -3,8 +3,6 @@ import uuid
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from .agent_loop import agent_turn, cancel_pending, resolve_approval
-from .conversation import ConversationManager
 from .file_ops import build_tree
 from .file_watcher import start as start_watcher, watch_loop
 from .llm import LLMClient
@@ -12,6 +10,7 @@ from .path_utils import CONTAINER, resolve_root, safe_path
 from .rollback import RollbackManager
 from .context_manager import ContextManager
 from .task_manager import TaskManager
+from .task_scheduler import TaskScheduler
 from config.settings import AVAILABLE_MODELS, CONTEXT_LIMIT, DEFAULT_MODEL, DEFAULT_REASONING, MODEL_VISION, REASONING_LEVELS, get_api_key
 
 
@@ -25,11 +24,9 @@ def contains_image(messages):
 
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    root = None
-    manager = None
-    pending = None
-    agent_task = None
     client = LLMClient(get_api_key())
+    scheduler = TaskScheduler(websocket, client)
+    root = None
     state = {'root': None}
     queue = asyncio.Queue()
     observer = start_watcher(CONTAINER, asyncio.get_running_loop(), queue)
@@ -37,54 +34,43 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            if agent_task and agent_task.done():
-                pending = agent_task.result()
-                agent_task = None
             action = data.get('action')
             if action == 'set_container':
                 await websocket.send_json({'type': 'container', 'files': build_tree(str(CONTAINER))})
+                await websocket.send_json({'type': 'workspace_statuses', 'items': scheduler.status_list()})
+                await websocket.send_json({'type': 'tasks', 'tasks': scheduler.task_list(CONTAINER)})
             elif action == 'set_root':
                 candidate = resolve_root(data['root'])
                 if candidate.is_dir() and CONTAINER.resolve() in candidate.parents:
-                    root, manager = str(candidate), ConversationManager(candidate)
+                    root = str(candidate)
+                    session = scheduler.get(root)
                     state['root'] = root
                     await websocket.send_json({'type': 'root_set', 'root': root})
-                    await _send_history(websocket, root, manager)
+                    await _send_history(websocket, session)
             elif action == 'files' and root:
                 await websocket.send_json({'type': 'files', 'files': build_tree(root)})
             elif action == 'read' and root:
                 await _read_file(websocket, root, data['path'])
-            elif action == 'rollback' and root and manager:
-                await _rollback(websocket, root, manager, data.get('turn_id'), client)
-            elif action == 'compact' and root and manager and not agent_task:
-                await _compact(websocket, root, manager, client)
-            elif action == 'message' and root and manager and not agent_task:
-                if await _start_turn(websocket, manager, root, data):
-                    agent_task = asyncio.create_task(
-                        agent_turn(
-                            websocket,
-                            client,
-                            manager,
-                            root,
-                            data['turn_id'],
-                            data.get('model', DEFAULT_MODEL),
-                            data.get('reasoning_effort', DEFAULT_REASONING),
-                        )
-                    )
-            elif action in {'approve', 'reject'} and pending and root and manager and not agent_task:
-                agent_task = asyncio.create_task(
-                    resolve_approval(
-                        websocket,
-                        client,
-                        manager,
-                        root,
-                        pending,
-                        action == 'approve',
-                    )
-                )
+            elif action == 'rollback' and root:
+                session = scheduler.get(root)
+                if not session.busy() and not session.pending:
+                    await _rollback(websocket, session, data.get('turn_id'), client)
+            elif action == 'compact' and root:
+                session = scheduler.get(root)
+                if not session.busy() and not session.pending:
+                    await _compact(websocket, session, client)
+            elif action == 'message' and root:
+                session = scheduler.get(root)
+                if not session.busy() and await _start_turn(session, data):
+                    await session.start(data)
+            elif action in {'approve', 'reject'}:
+                target = _target_session(scheduler, data.get('workspace') or root)
+                if target:
+                    await target.approve(action == 'approve')
             elif action == 'stop':
-                await _stop_turn(websocket, manager, pending, agent_task)
-                pending, agent_task = None, None
+                target = _target_session(scheduler, data.get('workspace') or root)
+                if target:
+                    await target.stop()
     except WebSocketDisconnect:
         pass
     except asyncio.CancelledError:
@@ -99,11 +85,19 @@ async def websocket_endpoint(websocket: WebSocket):
             pass
         observer.stop()
         observer.join(timeout=2)
-        if agent_task and not agent_task.done():
-            agent_task.cancel()
+    await scheduler.close()
 
 
-async def _start_turn(websocket, manager, root, data):
+def _target_session(scheduler, value):
+    if not value:
+        return None
+    candidate = resolve_root(value)
+    return scheduler.get(candidate)
+
+
+async def _start_turn(session, data):
+    websocket = session
+    manager, root = session.manager, session.root
     model = data.get('model', DEFAULT_MODEL)
     reasoning_effort = data.get('reasoning_effort', DEFAULT_REASONING)
     if model not in AVAILABLE_MODELS:
@@ -114,6 +108,8 @@ async def _start_turn(websocket, manager, root, data):
         await websocket.send_json({'type': 'error', 'content': '不支持的推理深度'})
         await websocket.send_json({'type': 'end'})
         return False
+    data['model'] = model
+    data['reasoning_effort'] = reasoning_effort
     messages = manager.load()
     content = data['content']
     has_image = _content_contains_image(content)
@@ -148,7 +144,8 @@ async def _read_file(websocket, root, path):
         await websocket.send_json({'type': 'error', 'content': str(exc)})
 
 
-async def _rollback(websocket, root, manager, turn_id, client):
+async def _rollback(websocket, session, turn_id, client):
+    root, manager = session.root, session.manager
     length = RollbackManager(root).restore(turn_id)
     if length is None:
         return
@@ -159,12 +156,13 @@ async def _rollback(websocket, root, manager, turn_id, client):
         await websocket.send_json({'type': 'context_status', 'status': 'compacting'})
         await context.compact(manager.load(), client)
         await websocket.send_json({'type': 'context_status', 'status': 'ready'})
-    await _send_history(websocket, root, manager)
+    await _send_history(websocket, session)
     await websocket.send_json({'type': 'files', 'files': build_tree(root)})
     await websocket.send_json({'type': 'rollback_done', 'turn_id': turn_id})
 
 
-async def _compact(websocket, root, manager, client):
+async def _compact(websocket, session, client):
+    root, manager = session.root, session.manager
     context = ContextManager(root)
     await websocket.send_json({'type': 'context_status', 'status': 'compacting'})
     if not await context.compact(manager.load(), client):
@@ -177,29 +175,21 @@ def _rollback_turn_ids(root):
     return [record['turn_id'] for record in RollbackManager(root).load()]
 
 
-async def _send_history(websocket, root, manager):
+async def _send_history(websocket, session):
+    root, manager = session.root, session.manager
     await websocket.send_json({
         'type': 'history',
+        'workspace': root,
         'messages': manager.load(),
         'rollback_turn_ids': _rollback_turn_ids(root),
     })
     usage = ContextManager(root).last_usage()
-    await websocket.send_json({'type': 'tasks', 'tasks': TaskManager(root).load()})
+    await websocket.send_json({'type': 'tasks', 'workspace': root, 'tasks': TaskManager(root).load()})
+    await session.send({'type': 'agent_status', 'status': session.status})
+    await session.resend_pending()
     if usage:
         await websocket.send_json({
             'type': 'context_usage',
             'usage': {'prompt_tokens': usage},
             'limit': CONTEXT_LIMIT,
         })
-
-
-async def _stop_turn(websocket, manager, pending, task):
-    if pending and manager:
-        cancel_pending(manager, pending)
-    if task and not task.done():
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-    await websocket.send_json({'type': 'stopped'})
