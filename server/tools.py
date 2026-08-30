@@ -3,6 +3,7 @@ import subprocess
 import difflib
 from .workspace.path_utils import safe_path
 from .testing.preview_server import start as start_preview, stop as stop_preview
+from .testing.browser_runner import run as run_web_test
 
 def prepare_write(root, path, content):
     target = safe_path(root, path)
@@ -40,6 +41,8 @@ def execute(name, arguments, root, approved=False):
             return start_preview(root)
         if tool == 'stop_preview':
             return stop_preview(root)
+        if tool == 'run_web_test':
+            return run_web_test(action.get('url', 'http://127.0.0.1:8000/'), action.get('steps', []))
         if tool == 'read_file':
             with open(safe_path(root, action['path']), encoding='utf-8') as file:
                 return {'result': file.read()}
@@ -56,3 +59,9 @@ def execute(name, arguments, root, approved=False):
         return {'result': f'未知工具：{tool}'}
     except Exception as exc:
         return {'result': f'工具执行失败：{exc}'}
+
+
+async def execute_async(name, arguments, root):
+    if name == 'run_web_test':
+        return await run_web_test(arguments.get('url', 'http://127.0.0.1:8000/'), arguments.get('steps', []), arguments.get('_on_step'))
+    return execute(name, arguments, root)

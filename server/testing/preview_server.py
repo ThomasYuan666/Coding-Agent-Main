@@ -22,7 +22,6 @@ def start(root):
     url = f'http://127.0.0.1:{port}/'
     return {'result': f'预览服务已启动：{url}', 'preview_url': url, 'preview_status': 'running'}
 
-
 def stop(root):
     process = _servers.pop(str(Path(root).resolve()), None)
     if process and process.poll() is None:

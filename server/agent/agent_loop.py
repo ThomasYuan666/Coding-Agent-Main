@@ -1,7 +1,7 @@
 import json
 import asyncio
 from ..context.rollback import RollbackManager
-from ..tools import apply_write, execute, prepare_write
+from ..tools import apply_write, execute, execute_async, prepare_write
 from ..context.context_manager import ContextManager
 from .task_manager import TaskManager
 from config.settings import CONTEXT_LIMIT
@@ -106,16 +106,16 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
         elif name in {"delete_file", "run_command"}:
             pending_items.append({"kind": "command", "call": call, "name": name, "args": args})
         else:
-            result = execute(name, args, root)
+            if name == 'run_web_test':
+                args['_on_step'] = lambda step: websocket.send_json({'type': 'test_step', 'workspace': root, **step})
+                result = await execute_async(name, args, root)
+                args.pop('_on_step', None)
+            else:
+                result = execute(name, args, root)
             manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
             await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})
-            if name in {"start_preview", "stop_preview"}:
-                await websocket.send_json({
-                    "type": "preview",
-                    "workspace": root,
-                    "status": result.get("preview_status", "stopped"),
-                    "url": result.get("preview_url", ""),
-                })
+            if name == 'run_web_test':
+                execute('stop_preview', {}, root)
 
     if pending_items:
         pending = {"items": pending_items, "index": 0, "turn_id": turn_id, "model": model, "reasoning_effort": reasoning_effort}

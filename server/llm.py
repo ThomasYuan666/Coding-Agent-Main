@@ -12,6 +12,7 @@ TOOLS = [
 TOOLS.extend([
     {'type': 'function', 'function': {'name': 'start_preview', 'description': '当工作区包含网页项目且需要查看运行效果时启动本地预览。', 'parameters': {'type': 'object', 'properties': {}}}},
     {'type': 'function', 'function': {'name': 'stop_preview', 'description': '关闭当前工作区网页预览并停止本地服务。', 'parameters': {'type': 'object', 'properties': {}}}},
+    {'type': 'function', 'function': {'name': 'run_web_test', 'description': '使用浏览器自动执行网页测试步骤。根据网页代码动态生成 steps；测试完成后浏览器自动关闭。', 'parameters': {'type': 'object', 'properties': {'url': {'type': 'string', 'description': '网页预览地址'}, 'steps': {'type': 'array', 'items': {'type': 'object', 'properties': {'action': {'type': 'string', 'enum': ['open', 'go_back', 'go_forward', 'reload', 'click', 'press', 'type', 'wait', 'wait_until', 'read_state', 'assert_state', 'assert_visible', 'assert_text', 'read_console']}, 'condition': {'type': 'string', 'enum': ['selector_visible', 'text_contains', 'url_contains', 'state_equals', 'state_changed']}, 'selector': {'type': 'string'}, 'key': {'type': 'string'}, 'text': {'type': 'string'}, 'url': {'type': 'string'}, 'ms': {'type': 'integer'}, 'timeout': {'type': 'integer'}, 'expression': {'type': 'string'}, 'value': {}} , 'required': ['action']}}}, 'required': ['steps']}}},
 ])
 
 TOOLS.extend([

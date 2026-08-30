@@ -187,6 +187,9 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
       collapsePendingToolCards();
       addMessage('tool', `工具：${data.tool}`, data.result);
     }
+    if (data.type === 'test_step') {
+      addMessage('tool', `测试：${data.action}`, data.status === 'passed' ? '已完成' : `失败：${data.error || ''}`);
+    }
     if (data.type === 'tool_call') {
       collapseThinking();
       liveSegment = null;
