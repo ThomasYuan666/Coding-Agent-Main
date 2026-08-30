@@ -2,6 +2,7 @@ import json
 from .rollback import RollbackManager
 from .tools import apply_write, execute, prepare_write
 from .context_manager import ContextManager
+from .task_manager import TaskManager
 from config.settings import CONTEXT_LIMIT
 
 
@@ -59,6 +60,7 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
     })
     parsed_calls = [_parse_call(call) for call in calls]
     pending_items = []
+    task_manager = TaskManager(root)
 
     write_calls = [item for item in parsed_calls if item[1] == "write_file"]
     if write_calls:
@@ -73,6 +75,25 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
 
     for call, name, args in parsed_calls:
         if name == "write_file":
+            continue
+        if name == 'create_plan':
+            task = (task_manager.add_plan(args['task_id'], args.get('goal', ''), args.get('steps', []))
+                    if args.get('task_id') else task_manager.create(args.get('goal', ''), args.get('steps', [])))
+            manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': json.dumps(task, ensure_ascii=False)})
+            await websocket.send_json({'type': 'task_update', 'task': task})
+            continue
+        if name in {'update_plan', 'report_failure'}:
+            status = 'failed' if name == 'report_failure' else args.get('status', 'pending')
+            task = task_manager.update_step(args.get('task_id'), args.get('step_id'), status, args.get('reason', ''))
+            result = task or {'error': '任务或步骤不存在'}
+            manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': json.dumps(result, ensure_ascii=False)})
+            await websocket.send_json({'type': 'task_update', 'task': result})
+            continue
+        if name == 'finish_task':
+            task = task_manager.finish(args.get('task_id'))
+            result = task or {'error': '任务不存在'}
+            manager.add({'role': 'tool', 'tool_call_id': call['id'], 'content': json.dumps(result, ensure_ascii=False)})
+            await websocket.send_json({'type': 'task_update', 'task': result})
             continue
         if name == "read_file":
             result = execute(name, args, root)

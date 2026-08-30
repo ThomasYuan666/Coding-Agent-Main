@@ -3,10 +3,12 @@ import { createChatUI } from './chat-ui.js';
 import { createDiffUI } from './diff-ui.js';
 import { createEditor } from './editor-ui.js';
 import { createWorkspaceUI } from './workspace-ui.js';
+import { createTaskUI } from './task-ui.js';
 
 const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
 const editorElement = document.querySelector('#editor');
+const taskUI = createTaskUI({ panel: document.querySelector('#task-panel'), toggle: document.querySelector('#tasks-toggle') });
 
 const workspaceUI = createWorkspaceUI({
   files,
@@ -45,6 +47,8 @@ onMessage((data) => {
   if (data.type === 'diff') diffUI.show(data.files);
   if (data.type === 'diff_status') diffUI.hide();
   if (data.type === 'file_content') editorUI.loadFile(data);
+  if (data.type === 'tasks') taskUI.render(data.tasks);
+  if (data.type === 'task_update') taskUI.update(data.task);
 });
 
 const connection = connect();

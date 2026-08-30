@@ -11,6 +11,7 @@ from .llm import LLMClient
 from .path_utils import CONTAINER, resolve_root, safe_path
 from .rollback import RollbackManager
 from .context_manager import ContextManager
+from .task_manager import TaskManager
 from config.settings import AVAILABLE_MODELS, CONTEXT_LIMIT, DEFAULT_MODEL, DEFAULT_REASONING, MODEL_VISION, REASONING_LEVELS, get_api_key
 
 
@@ -183,6 +184,7 @@ async def _send_history(websocket, root, manager):
         'rollback_turn_ids': _rollback_turn_ids(root),
     })
     usage = ContextManager(root).last_usage()
+    await websocket.send_json({'type': 'tasks', 'tasks': TaskManager(root).load()})
     if usage:
         await websocket.send_json({
             'type': 'context_usage',

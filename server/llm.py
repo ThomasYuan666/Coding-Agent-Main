@@ -9,6 +9,13 @@ TOOLS = [
     {'type': 'function', 'function': {'name': 'run_command', 'description': '在当前工作区执行 Windows 命令', 'parameters': {'type': 'object', 'properties': {'command': {'type': 'string'}}, 'required': ['command']}}}
 ]
 
+TOOLS.extend([
+    {'type': 'function', 'function': {'name': 'create_plan', 'description': '为复杂编程任务创建计划，简单问答不需要调用；已有任务可追加修复计划', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}, 'goal': {'type': 'string'}, 'steps': {'type': 'array', 'items': {'type': 'string'}}}, 'required': ['goal', 'steps']}}},
+    {'type': 'function', 'function': {'name': 'update_plan', 'description': '更新计划步骤状态', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}, 'step_id': {'type': 'string'}, 'status': {'type': 'string'}, 'reason': {'type': 'string'}}, 'required': ['task_id', 'step_id', 'status']}}},
+    {'type': 'function', 'function': {'name': 'finish_task', 'description': '确认当前任务已经完成', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}}, 'required': ['task_id']}}},
+    {'type': 'function', 'function': {'name': 'report_failure', 'description': '报告任务步骤失败原因', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}, 'step_id': {'type': 'string'}, 'reason': {'type': 'string'}}, 'required': ['task_id', 'reason']}}}
+])
+
 class LLMClient:
     def __init__(self, key):
         self.key = key

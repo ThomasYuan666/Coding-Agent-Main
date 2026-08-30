@@ -13,6 +13,15 @@ aside li.file { font-weight: normal; }
 
 
 main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+#tasks-toggle { align-self: flex-end; margin: 6px 12px 0; padding: 4px 9px; border: 1px solid #bbb; border-radius: 3px; background: #fff; cursor: pointer; }
+#task-panel { display: none; flex: 1; overflow: auto; padding: 14px; background: #f7f8fa; }
+#task-panel.visible { display: block; }
+.task-card { margin-bottom: 10px; padding: 10px 12px; border: 1px solid #d9dee3; border-radius: 5px; background: #fff; }
+.task-card summary { cursor: pointer; font-weight: 600; }
+.plan-block { margin-top: 10px; padding-left: 8px; border-left: 2px solid #d9dee3; }
+.plan-step { padding: 4px 0; font-size: 13px; }
+.plan-step.completed { color: #237a3b; }
+.plan-step.failed { color: #b42318; }
 #filename { padding: 10px 15px; background: #2d2d2d; color: #fff; font-size: 14px; border-bottom: 1px solid #444; }
 .CodeMirror { flex: 1; min-width: 0; width: 100%; height: auto; font-family: Consolas, Monaco, monospace; font-size: 14px; line-height: 1.6; }
 .CodeMirror-scroll { overflow-x: auto; }
