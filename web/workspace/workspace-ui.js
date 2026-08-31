@@ -4,6 +4,7 @@ import { workspaceName, sameWorkspace } from './workspace-utils.js';
 export function createWorkspaceUI({ files, title, send, onOpen }) {
   const rootName = 'workspace';
   let currentRoot = '';
+  let containerTree = [];
   const statuses = new Map();
 
   function refresh(tree) {
@@ -26,8 +27,15 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
       .find((node) => node.dataset.path === name);
   }
 
+  function visibleTree(tree) {
+    if (!currentRoot) return tree;
+    const name = workspaceName(currentRoot);
+    return (tree || []).filter((item) => item.type === 'folder' && workspaceName(item.path) === name);
+  }
+
   function restoreSelection() {
     const current = findCurrentItem();
+    if (!current) return;
     files.querySelectorAll(':scope > ul > li[data-type="folder"]').forEach((item) => {
       const selected = item === current;
       item.classList.toggle('active', selected);
@@ -42,6 +50,7 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
     if (!name) return;
     currentRoot = `${rootName}\\${name}`;
     title.textContent = `当前工作区：${name}`;
+    if (containerTree.length) renderFileTree(visibleTree(containerTree), files);
     restoreSelection();
     if (notify) send({ action: 'set_root', root: currentRoot });
     onOpen?.(currentRoot);
@@ -88,7 +97,8 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
 
   return {
     renderContainer: (tree) => {
-      renderFileTree(tree, files);
+      containerTree = tree || [];
+      renderFileTree(visibleTree(containerTree), files);
       restoreSelection();
       statuses.forEach((status, name) => setStatus(`${rootName}\\${name}`, status));
     },

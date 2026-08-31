@@ -1,6 +1,6 @@
 import { workspaceName } from '../workspace/workspace-utils.js';
 
-export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWorkspace }) {
+export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWorkspace, onAgentPanel }) {
   let tasks = [];
   const statuses = new Map();
   const taskById = new Map();
@@ -9,15 +9,29 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
   const statusMeta = (status) => ({ running: ['运行中', 'running'], waiting_approval: ['待审批', 'waiting'], failed: ['失败', 'failed'], completed: ['已完成', 'completed'], idle: ['空闲', 'idle'] }[status] || [status || '空闲', 'idle']);
   function showDashboard() {
     panel.classList.add('visible');
+    main?.classList.remove('agent-mode');
     main?.classList.add('dashboard-mode');
+    document.body.classList.add('agent-dashboard');
+    if (toggle) toggle.textContent = 'Agent 任务';
   }
 
   function showWorkspace() {
     panel.classList.remove('visible');
-    main?.classList.remove('dashboard-mode');
+    main?.classList.remove('dashboard-mode', 'agent-mode');
+    document.body.classList.remove('agent-dashboard');
+    if (toggle) toggle.textContent = 'Agent 任务';
   }
 
-  toggle.onclick = showDashboard;
+  function showAgentPanel() {
+    onAgentPanel?.();
+    showDashboard();
+  }
+
+  toggle.onclick = () => {
+    if (main?.classList.contains('dashboard-mode')) return showWorkspace();
+    if (main?.classList.contains('agent-mode')) return showWorkspace();
+    showAgentPanel();
+  };
   function render(next = tasks) {
     next.filter((task) => task && task.task_id).forEach((task) => {
       if (!task.workspace) return;
@@ -59,59 +73,42 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
       taskSummary.className = 'workspace-card-task';
       taskSummary.textContent = latest?.goal || '暂无任务';
       card.appendChild(taskSummary);
-      panel.appendChild(card);
-    });
-    renderDetails();
-  }
-
-  function renderDetails() {
-    if (!detailPanel) return;
-    detailPanel.innerHTML = '';
-    const root = getRoot?.();
-    const currentName = workspaceName(root);
-    const current = tasks.filter((task) => task.workspace && workspaceName(task.workspace) === currentName);
-    current.forEach((task) => {
-      const card = document.createElement('details');
-      card.className = 'task-card';
-      card.open = task.status !== 'completed';
-      const summary = document.createElement('summary');
-      const runtime = statuses.get(task.workspace) || statuses.get(currentName);
-      const [summaryLabel, summaryClass] = statusMeta(runtime || task.status);
-      summary.textContent = '';
-      const summaryGoal = document.createElement('span');
-      summaryGoal.className = 'task-card-goal';
-      summaryGoal.textContent = task.goal;
-      const summaryStatus = document.createElement('span');
-      summaryStatus.className = `status-badge status-${summaryClass}`;
-      summaryStatus.textContent = summaryLabel;
-      summary.append(summaryGoal, summaryStatus);
-      card.appendChild(summary);
-      (task.plans || []).forEach((plan) => {
-        const block = document.createElement('details');
-        block.className = 'plan-block';
-        block.open = plan.status !== 'completed';
-        const heading = document.createElement('summary');
-        heading.textContent = plan.goal;
-        block.appendChild(heading);
+      const steps = workspaceTasks.flatMap((task) => (task.plans || []).flatMap((plan) => plan.steps || []));
+      const completed = steps.filter((step) => step.status === 'completed').length;
+      if (steps.length) {
+        const progress = document.createElement('div');
+        progress.className = 'workspace-card-progress';
+        progress.textContent = `${completed} / ${steps.length} 步骤完成`;
+        card.appendChild(progress);
+      }
+      const plansContainer = document.createElement('div');
+      plansContainer.className = 'workspace-card-plans';
+      card.appendChild(plansContainer);
+      workspaceTasks.forEach((task) => (task.plans || []).forEach((plan) => {
+        const planBlock = document.createElement('details');
+        planBlock.className = 'workspace-card-plan';
+        planBlock.open = task.status !== 'completed';
+        const planTitle = document.createElement('summary');
+        planTitle.textContent = plan.goal;
+        planBlock.appendChild(planTitle);
         (plan.steps || []).forEach((step) => {
           const row = document.createElement('div');
           row.className = `plan-step ${step.status}`;
-          block.appendChild(row);
           const marker = document.createElement('span');
           marker.className = 'plan-step-marker';
           marker.textContent = step.status === 'completed' ? '✓' : step.status === 'failed' ? '×' : '•';
-          row.textContent = '';
           row.append(marker, document.createTextNode(` ${step.title}`));
+          planBlock.appendChild(row);
         });
-        card.appendChild(block);
-      });
-      detailPanel.appendChild(card);
+        plansContainer.appendChild(planBlock);
+      }));
+      panel.appendChild(card);
     });
   }
   return { render, setWorkspaces(items) {
     (items || []).filter((item) => item.type === 'folder').forEach((item) => workspaces.add(workspaceName(item.path)));
     render();
-  }, showDashboard, showWorkspace, updateStatus(workspace, status, taskId) {
+  }, showDashboard, showWorkspace, showAgentPanel, updateStatus(workspace, status, taskId) {
     if (!workspace) return;
     const normalized = String(workspace).replace(/\//g, '\\');
     const name = workspaceName(normalized);
