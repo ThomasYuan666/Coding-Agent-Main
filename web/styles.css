@@ -36,7 +36,7 @@ main { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-dir
 #editor-tabs button { border: 0; border-right: 1px solid #3b3b3b; padding: 8px 12px; color: #bbb; background: #252526; cursor: pointer; white-space: nowrap; }
 #editor-tabs button.active { color: #fff; background: #1e1e1e; }
 /* The Agent dashboard is a focused workspaces view. */
-#agent-orb { position: fixed; left: 18px; bottom: 18px; z-index: 20; width: 52px; height: 52px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--surface); color: var(--accent); box-shadow: 0 6px 18px rgba(31,42,37,.16); cursor: pointer; font-weight: 700; }
+#agent-orb { position: fixed; left: 18px; bottom: 18px; z-index: 20; width: 80px; height: 80px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--surface); color: var(--accent); box-shadow: 0 8px 22px rgba(31,42,37,.18); cursor: pointer; font-size: 15px; font-weight: 700; white-space: nowrap; }
 #agent-orb:hover { border-color: var(--accent); transform: translateY(-1px); }
 #task-panel { position: fixed; left: 18px; bottom: 18px; z-index: 19; display: none; flex-direction: column; width: 360px; height: min(560px, calc(100vh - 36px)); padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; background: rgba(255,255,255,.94); box-shadow: 0 12px 32px rgba(31,42,37,.18); backdrop-filter: blur(10px); overflow: hidden; }
 body.agent-panel-open #agent-orb { display: none; }
@@ -44,17 +44,15 @@ body.agent-panel-open #agent-orb { display: none; }
 .agent-panel-header strong { margin-right: auto; }
 .agent-panel-header button { width: 26px; height: 26px; border: 0; border-radius: 5px; background: var(--surface-muted); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; }
 .agent-panel-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
-.agent-panel-content .workspace-card { flex: 0 0 250px; height: 250px; }
+.agent-panel-content .workspace-card { flex: 0 0 250px; }
 .workspace-card-progress { margin-top: 8px; color: var(--ink-muted); font-size: 12px; }
 .workspace-card-plan { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 .workspace-card-plan summary { cursor: pointer; color: var(--ink); font-size: 13px; font-weight: 600; }
 .workspace-card-plan .plan-step { padding: 3px 0; font-size: 12px; }
-.task-card { margin-bottom: 7px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: 0 1px 2px rgba(31,42,37,.04); }
-.task-card summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; font-weight: 600; }
-.workspace-card { height: 340px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 2px 8px rgba(31,42,37,.06); transition: transform .18s ease, box-shadow .18s ease; }
+.workspace-card { height: 250px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 2px 8px rgba(31,42,37,.06); transition: transform .18s ease, box-shadow .18s ease; }
 .workspace-card:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(31,42,37,.10); }
 .workspace-card-header { width: 100%; padding: 0; border: 0; background: transparent; color: var(--ink); display: flex; align-items: center; gap: 8px; text-align: left; font-size: 16px; font-weight: 650; cursor: pointer; }
-.workspace-card-name, .task-card-goal { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-card-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-badge { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: 11px; line-height: 1.4; font-weight: 600; }
 .status-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .status-running { color: var(--accent); background: var(--accent-soft); }
@@ -70,13 +68,10 @@ body.agent-panel-open #agent-orb { display: none; }
 .workspace-card-task { margin-top: 10px; color: var(--ink-muted); font-size: 13px; }
 .workspace-card-plans { min-height: 0; flex: 1 1 auto; overflow-y: auto; margin-top: 8px; padding-right: 4px; }
 #task-panel.visible { display: flex; flex-direction: column; gap: 0; }
-.plan-block { margin-top: 10px; padding-left: 8px; border-left: 2px solid #d9dee3; }
 .plan-step { display: flex; align-items: baseline; gap: 5px; padding: 4px 0; font-size: 13px; }
 .plan-step-marker { width: 12px; flex: 0 0 12px; text-align: center; font-weight: 700; }
 .plan-step.completed { color: var(--success); }
 .plan-step.failed { color: var(--danger); }
-.agent-panel-progress { margin-left: auto; color: var(--ink-muted); font-size: 11px; white-space: nowrap; }
-.agent-task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-top: 8px; }
 #filename { padding: 10px 15px; background: #2d2d2d; color: #fff; font-size: 14px; border-bottom: 1px solid #444; }
 .CodeMirror { flex: 1; min-width: 0; width: 100%; height: auto; font-family: Consolas, Monaco, monospace; font-size: 14px; line-height: 1.6; }
 .CodeMirror-scroll { overflow-x: auto; }
