@@ -1,5 +1,5 @@
 import { connect, send, onMessage } from './core/websocket.js';
-import { createChatUI } from './chat/chat-ui.js?v=29';
+import { createChatUI } from './chat/chat-ui.js?v=31';
 import { createDiffUI } from './editor/diff-ui.js?v=3';
 import { createEditor } from './editor/editor-ui.js';
 import { createWorkspaceUI } from './workspace/workspace-ui.js?v=18';
@@ -36,6 +36,7 @@ const chatUI = createChatUI({
   reasoningSelect: document.querySelector('#reasoning-select'),
   compactButton: document.querySelector('#compact-context'),
   imageStatus: document.querySelector('#image-status'),
+  imagePreview: document.querySelector('#image-preview'),
   contextStatus: document.querySelector('#context-status'),
   contextRing: document.querySelector('#context-ring'),
   form: document.querySelector('#chat'),

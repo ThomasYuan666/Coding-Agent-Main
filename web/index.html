@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Coding Agent</title>
-  <link rel="stylesheet" href="/static/styles.css?v=32">
+  <link rel="stylesheet" href="/static/styles.css?v=33">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
@@ -53,11 +53,12 @@
     </div>
     <div id="messages"></div>
     <form id="chat">
+      <div id="image-preview" hidden></div>
       <textarea id="input" placeholder="输入编程任务... (Shift+Enter换行)"></textarea>
       <button id="send" type="submit">发送</button>
     </form>
   </section>
 
-  <script type="module" src="/static/app.js?v=30"></script>
+  <script type="module" src="/static/app.js?v=32"></script>
 </body>
 </html>

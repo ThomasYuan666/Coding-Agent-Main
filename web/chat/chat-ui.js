@@ -1,12 +1,33 @@
 import { workspaceName } from '../workspace/workspace-utils.js';
 
-export function createChatUI({ messages, input, modelSelect, reasoningSelect, imageStatus, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
+export function createChatUI({ messages, input, modelSelect, reasoningSelect, imageStatus, imagePreview, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
   let liveSegment = null;
   let executionGroup = null;
   let executionBody = null;
   let pendingImage = null;
   const busyByWorkspace = new Map();
   const taskByWorkspace = new Map();
+
+  function clearPendingImage() {
+    pendingImage = null;
+    if (imagePreview) { imagePreview.hidden = true; imagePreview.replaceChildren(); }
+  }
+
+  function showPendingImage(dataUrl) {
+    if (!imagePreview) return;
+    imagePreview.replaceChildren();
+    const image = document.createElement('img');
+    image.src = dataUrl;
+    image.alt = '待发送图片';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'image-preview-remove';
+    remove.textContent = '×';
+    remove.title = '移除图片';
+    remove.onclick = clearPendingImage;
+    imagePreview.append(image, remove);
+    imagePreview.hidden = false;
+  }
 
   function workspaceKey() {
     return workspaceName(getRoot()) || '__none__';
@@ -340,7 +361,8 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
     const reader = new FileReader();
     reader.onload = () => {
       pendingImage = reader.result;
-      imageStatus.textContent = `已粘贴图片 (${Math.round(file.size / 1024)} KiB)`;
+      showPendingImage(pendingImage);
+      imageStatus.textContent = '';
     };
     reader.readAsDataURL(file);
   });
@@ -359,7 +381,7 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
       : text;
     send({ action: 'message', content, model: modelSelect.value, reasoning_effort: reasoningSelect.value });
     input.value = '';
-    pendingImage = null;
+    clearPendingImage();
     imageStatus.textContent = '';
     setBusy(true);
   };
