@@ -10,16 +10,19 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
   function showDashboard() {
     panel.classList.add('visible');
     main?.classList.remove('agent-mode');
-    main?.classList.add('dashboard-mode');
-    document.body.classList.add('agent-dashboard');
+    main?.classList.remove('dashboard-mode');
+    document.body.classList.add('agent-panel-open');
     if (toggle) toggle.textContent = 'Agent 任务';
   }
 
   function showWorkspace() {
-    panel.classList.remove('visible');
     main?.classList.remove('dashboard-mode', 'agent-mode');
-    document.body.classList.remove('agent-dashboard');
     if (toggle) toggle.textContent = 'Agent 任务';
+  }
+
+  function collapse() {
+    panel.classList.remove('visible');
+    document.body.classList.remove('agent-panel-open');
   }
 
   function showAgentPanel() {
@@ -28,8 +31,7 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
   }
 
   toggle.onclick = () => {
-    if (main?.classList.contains('dashboard-mode')) return showWorkspace();
-    if (main?.classList.contains('agent-mode')) return showWorkspace();
+    if (panel.classList.contains('visible')) return collapse();
     showAgentPanel();
   };
   function render(next = tasks) {
@@ -43,6 +45,14 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
     });
     tasks = [...taskById.values()].filter((task) => task.workspace);
     panel.innerHTML = '';
+    const header = document.createElement('div');
+    header.className = 'agent-panel-header';
+    header.innerHTML = '<strong>Agent 工作区</strong><button type="button" aria-label="收起">−</button>';
+    header.querySelector('button').onclick = collapse;
+    panel.appendChild(header);
+    const content = document.createElement('div');
+    content.className = 'agent-panel-content';
+    panel.appendChild(content);
     const groups = new Map();
     tasks.forEach((task) => {
       const key = workspaceName(task.workspace);
@@ -102,7 +112,7 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
         });
         plansContainer.appendChild(planBlock);
       }));
-      panel.appendChild(card);
+      content.appendChild(card);
     });
   }
   return { render, setWorkspaces(items) {

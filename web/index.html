@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Coding Agent</title>
-  <link rel="stylesheet" href="/static/styles.css?v=14">
+  <link rel="stylesheet" href="/static/styles.css?v=18">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
@@ -25,9 +25,8 @@
   </aside>
 
   <main>
-    <button id="tasks-toggle" type="button">Agent 任务</button>
+    <button id="agent-orb" type="button" aria-label="Agent">Agent</button>
     <div id="task-panel"></div>
-    <div id="workspace-task-panel" aria-label="当前工作区任务"></div>
     <div id="editor-tabs" aria-label="打开的文件"></div>
     <div id="filename">未选择文件</div>
     <div id="diff-panel" hidden></div>
@@ -59,6 +58,6 @@
     </form>
   </section>
 
-  <script type="module" src="/static/app.js?v=14"></script>
+  <script type="module" src="/static/app.js?v=18"></script>
 </body>
 </html>

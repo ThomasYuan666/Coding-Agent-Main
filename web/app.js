@@ -2,8 +2,8 @@ import { connect, send, onMessage } from './core/websocket.js';
 import { createChatUI } from './chat/chat-ui.js';
 import { createDiffUI } from './editor/diff-ui.js?v=3';
 import { createEditor } from './editor/editor-ui.js';
-import { createWorkspaceUI } from './workspace/workspace-ui.js?v=14';
-import { createTaskUI } from './tasks/task-ui.js?v=13';
+import { createWorkspaceUI } from './workspace/workspace-ui.js?v=18';
+import { createTaskUI } from './tasks/task-ui.js?v=18';
 
 const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
@@ -11,14 +11,13 @@ const editorElement = document.querySelector('#editor');
 let workspaceUI;
 const taskUI = createTaskUI({
   panel: document.querySelector('#task-panel'),
-  detailPanel: document.querySelector('#workspace-task-panel'),
-  toggle: document.querySelector('#tasks-toggle'),
+  detailPanel: null,
+  toggle: document.querySelector('#agent-orb'),
   main: document.querySelector('main'),
   getRoot: () => workspaceUI?.getRoot(),
   onWorkspace: (root) => openWorkspace(root),
   onAgentPanel: () => diffUI?.hide()
 });
-taskUI.showDashboard();
 
 workspaceUI = createWorkspaceUI({
   files,

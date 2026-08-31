@@ -28,7 +28,7 @@ export function createWorkspaceUI({ files, title, send, onOpen }) {
   }
 
   function visibleTree(tree) {
-    if (!currentRoot) return tree;
+    if (!currentRoot) return [];
     const name = workspaceName(currentRoot);
     return (tree || []).filter((item) => item.type === 'folder' && workspaceName(item.path) === name);
   }
