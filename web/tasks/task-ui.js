@@ -1,22 +1,19 @@
 import { workspaceName } from '../workspace/workspace-utils.js';
 
-export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWorkspace, onAgentPanel }) {
+export function createTaskUI({ panel, toggle, onWorkspace, onAgentPanel }) {
   let tasks = [];
   const statuses = new Map();
   const taskById = new Map();
   const workspaces = new Set();
   const workspaceRoots = new Map();
   const statusMeta = (status) => ({ running: ['运行中', 'running'], waiting_approval: ['待审批', 'waiting'], failed: ['失败', 'failed'], completed: ['已完成', 'completed'], idle: ['空闲', 'idle'] }[status] || [status || '空闲', 'idle']);
-  function showDashboard() {
+  function openPanel() {
     panel.classList.add('visible');
-    main?.classList.remove('agent-mode');
-    main?.classList.remove('dashboard-mode');
     document.body.classList.add('agent-panel-open');
     if (toggle) toggle.textContent = 'Agent 任务';
   }
 
   function showWorkspace() {
-    main?.classList.remove('dashboard-mode', 'agent-mode');
     if (toggle) toggle.textContent = 'Agent 任务';
   }
 
@@ -27,12 +24,13 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
 
   function showAgentPanel() {
     onAgentPanel?.();
-    showDashboard();
+    openPanel();
   }
 
   toggle.onclick = () => {
     if (panel.classList.contains('visible')) return collapse();
-    showAgentPanel();
+    onAgentPanel?.();
+    openPanel();
   };
   function render(next = tasks) {
     next.filter((task) => task && task.task_id).forEach((task) => {
@@ -118,7 +116,7 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
   return { render, setWorkspaces(items) {
     (items || []).filter((item) => item.type === 'folder').forEach((item) => workspaces.add(workspaceName(item.path)));
     render();
-  }, showDashboard, showWorkspace, showAgentPanel, updateStatus(workspace, status, taskId) {
+  }, openPanel, collapse, updateStatus(workspace, status, taskId) {
     if (!workspace) return;
     const normalized = String(workspace).replace(/\//g, '\\');
     const name = workspaceName(normalized);

@@ -11,10 +11,8 @@ const editorElement = document.querySelector('#editor');
 let workspaceUI;
 const taskUI = createTaskUI({
   panel: document.querySelector('#task-panel'),
-  detailPanel: null,
   toggle: document.querySelector('#agent-orb'),
   main: document.querySelector('main'),
-  getRoot: () => workspaceUI?.getRoot(),
   onWorkspace: (root) => openWorkspace(root),
   onAgentPanel: () => diffUI?.hide()
 });
@@ -90,7 +88,6 @@ function openWorkspace(root, notify = true) {
 }
 
 function enterWorkspace(root) {
-  taskUI.showWorkspace();
   diffUI.hide();
   editorUI.setWorkspace(root);
   chatUI.setWorkspace(root);
