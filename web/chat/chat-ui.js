@@ -2,6 +2,8 @@ import { workspaceName } from '../workspace/workspace-utils.js';
 
 export function createChatUI({ messages, input, modelSelect, reasoningSelect, imageStatus, contextStatus, contextRing, compactButton, form, sendButton, getRoot, send }) {
   let liveSegment = null;
+  let executionGroup = null;
+  let executionBody = null;
   let pendingImage = null;
   const busyByWorkspace = new Map();
   const taskByWorkspace = new Map();
@@ -22,9 +24,10 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
     };
   }
 
-  function addMessage(type, label, text = '', markdown = false, turnId = '', canRollback = false) {
+  function addMessage(type, label, text = '', markdown = false, turnId = '', canRollback = false, target = messages) {
     const item = document.createElement('div');
     item.className = `msg ${type}`;
+    if (target === messages && (type === 'reasoning' || type === 'tool')) target = ensureExecutionGroup();
     if (turnId) item.dataset.turnId = turnId;
     item.innerHTML = `<strong>${label}</strong><span></span>`;
     const content = item.querySelector('span');
@@ -45,13 +48,41 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
     } else {
       content.textContent = text;
     }
-    messages.appendChild(item);
+    target.appendChild(item);
     if (type === 'reasoning' || type === 'tool') {
-      makeCollapsible(item, type === 'tool' && label !== '需要确认');
+      makeCollapsible(item, false);
     }
     if (type === 'user' && turnId && canRollback) addRollbackButton(item, turnId);
     messages.scrollTop = messages.scrollHeight;
     return content;
+  }
+
+  function ensureExecutionGroup() {
+    if (executionGroup) return executionBody;
+    executionGroup = document.createElement('section');
+    executionGroup.className = 'execution-group';
+    executionGroup.innerHTML = '<button type="button" class="execution-header"><span class="execution-state">正在执行</span><span class="execution-summary"></span></button>';
+    executionBody = document.createElement('div');
+    executionBody.className = 'execution-body';
+    executionGroup.appendChild(executionBody);
+    messages.appendChild(executionGroup);
+    const group = executionGroup;
+    group.querySelector('.execution-header').onclick = () => group.classList.toggle('collapsed');
+    return executionBody;
+  }
+
+  function addExecutionMessage(type, label, text = '', markdown = false) {
+    return addMessage(type, label, text, markdown, '', false, ensureExecutionGroup());
+  }
+
+  function finishExecution(collapsed = true) {
+    if (!executionGroup) return;
+    executionGroup.classList.toggle('collapsed', collapsed);
+    executionGroup.querySelector('.execution-state').textContent = collapsed ? '执行过程' : '正在执行';
+    const count = executionBody.children.length;
+    executionGroup.querySelector('.execution-summary').textContent = count ? `${count} 项操作` : '';
+    executionGroup = null;
+    executionBody = null;
   }
 
   function makeCollapsible(item, collapsed = false) {
@@ -91,7 +122,10 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
 
   function renderHistory(history, rollbackTurnIds = []) {
     messages.innerHTML = '';
+    executionGroup = null;
+    executionBody = null;
     history.filter((message) => message.role !== 'system').forEach((message) => {
+      if (message.role === 'user') finishExecution();
       if (message.role === 'user') {
         addMessage('user', '你', message.content || '', false, message.turn_id || '', rollbackTurnIds.includes(message.turn_id));
       }
@@ -99,16 +133,21 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
         const reasoning = addMessage('reasoning', '思考', message.reasoning_content);
         reasoning.parentElement.classList.add('collapsed');
       }
-      if (message.role === 'assistant' && message.content) addMessage('agent', 'Agent', message.content, true);
+      if (message.role === 'assistant' && message.content) {
+        finishExecution();
+        addMessage('agent', 'Agent', message.content, true);
+      }
       (message.tool_calls || []).forEach((call) => {
         const fn = call.function || {};
         addMessage('tool', `工具：${fn.name || 'unknown'}`, `参数：${fn.arguments || '{}'}`);
       });
       if (message.role === 'tool') addMessage('tool', '工具结果', message.content || '');
     });
+    finishExecution();
   }
 
   function appendLiveSegment(type, text) {
+    if (type === 'content' && !liveSegment) finishExecution(true);
     if (liveSegment && liveSegment.dataset.type !== type) collapseThinking();
     if (!liveSegment || liveSegment.dataset.type !== type) {
       liveSegment = addMessage(
@@ -169,12 +208,13 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
     if (data.type === 'rollback_state') updateRollbackButtons(data.turn_ids);
     if (data.type === 'user' && data.turn_id) addMessage('user', '你', data.content, false, data.turn_id, true);
     if (data.type === 'reasoning') appendLiveSegment('reasoning', data.content);
-    if (data.type === 'start') liveSegment = null;
+    if (data.type === 'start') { liveSegment = null; finishExecution(false); }
     if (data.type === 'chunk') appendLiveSegment('content', data.content);
     if (data.type === 'approval') renderApproval(data);
     if (data.type === 'end' || data.type === 'stopped') {
       collapseThinking();
       liveSegment = null;
+      finishExecution(true);
       setBusy(false);
     }
     if (data.type === 'error') {
