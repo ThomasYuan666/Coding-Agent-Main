@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -18,6 +18,19 @@ app.websocket('/ws')(websocket_endpoint)
 @app.get('/')
 async def index():
     return FileResponse(WEB / 'index.html')
+
+@app.get('/api/screenshot')
+async def screenshot(root: str = Query(...), path: str = Query('latest.png')):
+    workspace = Path(resolve_root(root))
+    try:
+        workspace.relative_to(Path(resolve_root('.')))
+    except ValueError:
+        return {'error': 'invalid workspace'}
+    base = workspace / '.coding-agent' / 'screenshots'
+    target = Path(safe_path(str(base), path))
+    if target.suffix.lower() != '.png' or not target.is_file():
+        return {'error': 'screenshot not found'}
+    return FileResponse(target, media_type='image/png')
 
 
 @app.put('/api/file')

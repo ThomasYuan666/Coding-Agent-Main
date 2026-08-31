@@ -1,5 +1,7 @@
 import json
 import asyncio
+import base64
+from pathlib import Path
 from ..context.rollback import RollbackManager
 from ..tools import apply_write, execute, execute_async, prepare_write
 from ..testing.browser_session import close as close_browser
@@ -113,13 +115,39 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
                 result = await execute_async(name, args, root)
             else:
                 result = execute(name, args, root)
-            manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
-            await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})
+            if result.get('screenshot_url'):
+                analysis = await _analyze_screenshot(client, result.get('screenshot_path'))
+                result['result'] += f'\n视觉分析：{analysis}' if analysis else ''
+                image_url = result['screenshot_url']
+                try:
+                    encoded = base64.b64encode(Path(result['screenshot_path']).read_bytes()).decode('ascii')
+                    image_url = f'data:image/png;base64,{encoded}'
+                except Exception:
+                    pass
+                manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
+                await websocket.send_json({'type': 'screenshot', 'result': result['result'], 'url': image_url, 'source_url': result['screenshot_url']})
+            else:
+                manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
+                await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})
     if pending_items:
         pending = {"items": pending_items, "index": 0, "turn_id": turn_id, "model": model, "reasoning_effort": reasoning_effort}
         await _show_pending(websocket, root, pending_items[0])
         return pending
     return await agent_turn(websocket, client, manager, root, turn_id, model, reasoning_effort)
+
+
+async def _analyze_screenshot(client, path):
+    if not path:
+        return ''
+    try:
+        encoded = base64.b64encode(Path(path).read_bytes()).decode('ascii')
+        return await client.describe_image([{
+            'type': 'image_url',
+            'image_url': {'url': f'data:image/png;base64,{encoded}', 'detail': 'auto'},
+        }])
+    except Exception as exc:
+        print(f'[vision] screenshot analysis failed: {type(exc).__name__}: {exc}')
+        return f'分析失败：{exc}'
 
 
 async def _read_files_parallel(websocket, root, calls):

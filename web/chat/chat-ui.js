@@ -227,6 +227,23 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
       collapsePendingToolCards();
       addMessage('tool', `工具：${data.tool}`, data.result);
     }
+    if (data.type === 'screenshot') {
+      const content = addExecutionMessage('tool', 'Browser screenshot', data.result || '');
+      const screenshotUrl = data.url || data.screenshot_url;
+      if (screenshotUrl) {
+        const card = document.createElement('article');
+        card.className = 'screenshot-card';
+        card.innerHTML = '<strong>页面截图</strong>';
+        const image = document.createElement('img');
+        image.src = data.source_url || screenshotUrl;
+        image.alt = 'Browser screenshot';
+        image.className = 'screenshot-image';
+        image.onerror = () => { if (image.src !== screenshotUrl) image.src = screenshotUrl; };
+        image.onclick = () => window.open(image.src, '_blank', 'noopener');
+        card.appendChild(image);
+        messages.appendChild(card);
+      }
+    }
     if (data.type === 'test_step') {
       addMessage('tool', `测试：${data.action}`, data.status === 'passed' ? '已完成' : `失败：${data.error || ''}`);
     }

@@ -1,4 +1,7 @@
 import json
+from pathlib import Path
+from urllib.parse import urlencode
+from datetime import datetime
 
 from .browser_session import get, close
 from .browser_observer import observe
@@ -10,6 +13,17 @@ async def execute(name, args, root):
         return {'result': '浏览器测试会话已关闭。'}
     session = await get(root)
     page = session.page
+    if name == 'browser_screenshot':
+        directory = Path(root) / '.coding-agent' / 'screenshots'
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.png"
+        await page.screenshot(path=str(path), full_page=bool(args.get('full_page', False)))
+        query = urlencode({'root': root, 'path': path.name})
+        return {
+            'result': f'Screenshot captured: .coding-agent/screenshots/{path.name}',
+            'screenshot_url': f'/api/screenshot?{query}',
+            'screenshot_path': str(path),
+        }
     if name == 'browser_open':
         value = args.get('url')
         if not value or value.startswith('file://'):

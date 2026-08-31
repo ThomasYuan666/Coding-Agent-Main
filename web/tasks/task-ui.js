@@ -13,18 +13,9 @@ export function createTaskUI({ panel, toggle, onWorkspace, onAgentPanel }) {
     if (toggle) toggle.textContent = 'Agent 任务';
   }
 
-  function showWorkspace() {
-    if (toggle) toggle.textContent = 'Agent 任务';
-  }
-
   function collapse() {
     panel.classList.remove('visible');
     document.body.classList.remove('agent-panel-open');
-  }
-
-  function showAgentPanel() {
-    onAgentPanel?.();
-    openPanel();
   }
 
   toggle.onclick = () => {

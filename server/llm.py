@@ -19,6 +19,7 @@ TOOLS.extend([
     {'type': 'function', 'function': {'name': 'browser_observe', 'description': '读取当前网页标题、文本和可选 JavaScript 状态。', 'parameters': {'type': 'object', 'properties': {'expression': {'type': 'string'}}, 'required': []}}},
     {'type': 'function', 'function': {'name': 'browser_close', 'description': '关闭当前工作区的浏览器测试会话。', 'parameters': {'type': 'object', 'properties': {}}}},
 ])
+TOOLS.extend([{'type': 'function', 'function': {'name': 'browser_screenshot', 'description': 'Capture the current browser page', 'parameters': {'type': 'object', 'properties': {'full_page': {'type': 'boolean'}}, 'required': []}}}])
 
 TOOLS.extend([
     {'type': 'function', 'function': {'name': 'create_plan', 'description': '为复杂编程任务创建计划，简单问答不需要调用；已有任务可追加修复计划', 'parameters': {'type': 'object', 'properties': {'task_id': {'type': 'string'}, 'goal': {'type': 'string'}, 'steps': {'type': 'array', 'items': {'type': 'string'}}}, 'required': ['goal', 'steps']}}},
