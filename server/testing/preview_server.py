@@ -8,8 +8,6 @@ _servers = {}
 
 def start(root):
     root_path = Path(root).resolve()
-    if False:
-        return {'result': '未找到 index.html，无法启动网页预览'}
     stop(root)
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
@@ -21,6 +19,7 @@ def start(root):
     url = f'http://127.0.0.1:{port}/'
     _servers[str(root_path)] = {'process': process, 'url': url}
     return {'result': f'预览服务已启动：{url}', 'preview_url': url, 'preview_status': 'running'}
+
 
 def ensure(root):
     current = _servers.get(str(Path(root).resolve()))
