@@ -141,7 +141,10 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
         const fn = call.function || {};
         addMessage('tool', `工具：${fn.name || 'unknown'}`, `参数：${fn.arguments || '{}'}`);
       });
-      if (message.role === 'tool') addMessage('tool', '工具结果', message.content || '');
+      if (message.role === 'tool') {
+        addMessage('tool', '工具结果', message.content || '');
+        if (message.screenshot_url) addScreenshotCard(message.screenshot_url, message.vision_analysis || '');
+      }
     });
     finishExecution();
   }
@@ -241,6 +244,16 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
         image.onerror = () => { if (image.src !== screenshotUrl) image.src = screenshotUrl; };
         image.onclick = () => window.open(image.src, '_blank', 'noopener');
         card.appendChild(image);
+        if (data.analysis) {
+          const details = document.createElement('details');
+          details.className = 'screenshot-analysis-details';
+          details.innerHTML = '<summary>Vision 分析</summary>';
+          const analysis = document.createElement('p');
+          analysis.className = 'screenshot-analysis';
+          analysis.textContent = data.analysis;
+          details.appendChild(analysis);
+          card.appendChild(details);
+        }
         messages.appendChild(card);
       }
     }
@@ -283,6 +296,29 @@ export function createChatUI({ messages, input, modelSelect, reasoningSelect, im
       item.classList.add('collapsed');
       delete item.dataset.pendingTool;
     });
+  }
+
+  function addScreenshotCard(sourceUrl, analysisText) {
+    const card = document.createElement('article');
+    card.className = 'screenshot-card';
+    card.innerHTML = '<strong class="screenshot-title">页面截图</strong>';
+    const image = document.createElement('img');
+    image.src = sourceUrl;
+    image.alt = 'Browser screenshot';
+    image.className = 'screenshot-image';
+    image.onclick = () => window.open(image.src, '_blank', 'noopener');
+    card.appendChild(image);
+    if (analysisText) {
+      const details = document.createElement('details');
+      details.className = 'screenshot-analysis-details';
+      details.innerHTML = '<summary>Vision 分析</summary>';
+      const analysis = document.createElement('p');
+      analysis.className = 'screenshot-analysis';
+      analysis.textContent = analysisText;
+      details.appendChild(analysis);
+      card.appendChild(details);
+    }
+    messages.appendChild(card);
   }
 
   input.addEventListener('keydown', (event) => {

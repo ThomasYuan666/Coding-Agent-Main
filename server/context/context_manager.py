@@ -46,7 +46,11 @@ class ContextManager:
         if summary:
             messages.append({'role': 'system', 'content': f'历史摘要：\n{summary}'})
         for group in recent:
-            messages.extend(group)
+            # UI-only screenshot metadata is persisted for history rendering,
+            # but must not be sent as unknown fields to the chat API.
+            messages.extend({k: v for k, v in message.items()
+                             if k not in {'screenshot_url', 'screenshot_path', 'vision_analysis'}}
+                           for message in group)
         return messages
 
     def needs_compaction(self, prompt_tokens):

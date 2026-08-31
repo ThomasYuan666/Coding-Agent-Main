@@ -124,8 +124,8 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
                     image_url = f'data:image/png;base64,{encoded}'
                 except Exception:
                     pass
-                manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
-                await websocket.send_json({'type': 'screenshot', 'result': result['result'], 'url': image_url, 'source_url': result['screenshot_url']})
+                manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"], "screenshot_url": result["screenshot_url"], "screenshot_path": result.get("screenshot_path"), "vision_analysis": analysis})
+                await websocket.send_json({'type': 'screenshot', 'result': result['result'], 'analysis': analysis, 'url': image_url, 'source_url': result['screenshot_url']})
             else:
                 manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
                 await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})

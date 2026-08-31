@@ -36,9 +36,20 @@ export function createTaskUI({ panel, toggle, onWorkspace, onAgentPanel }) {
     panel.innerHTML = '';
     const header = document.createElement('div');
     header.className = 'agent-panel-header';
+    const counts = { idle: 0, running: 0, waiting_approval: 0, failed: 0 };
+    workspaces.forEach((workspace) => { const status = statuses.get(workspace) || 'idle'; if (counts[status] !== undefined) counts[status] += 1; });
     header.innerHTML = '<strong>Agent 工作区</strong><button type="button" aria-label="收起">−</button>';
     header.querySelector('button').onclick = collapse;
     panel.appendChild(header);
+    const summary = document.createElement('span');
+    summary.className = 'agent-status-summary';
+    summary.textContent = `空闲 ${counts.idle} · 运行 ${counts.running} · 待审批 ${counts.waiting_approval} · 失败 ${counts.failed}`;
+    header.insertBefore(summary, header.querySelector('button'));
+    if (toggle) {
+      const priority = counts.failed ? 'failed' : counts.waiting_approval ? 'waiting' : counts.running ? 'running' : 'idle';
+      toggle.dataset.agentNotice = priority;
+      toggle.title = priority === 'failed' ? '有失败任务' : priority === 'waiting' ? '有待审批任务' : priority === 'running' ? '有运行中任务' : '全部空闲';
+    }
     const content = document.createElement('div');
     content.className = 'agent-panel-content';
     panel.appendChild(content);

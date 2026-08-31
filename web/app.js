@@ -1,9 +1,9 @@
 import { connect, send, onMessage } from './core/websocket.js';
-import { createChatUI } from './chat/chat-ui.js?v=27';
+import { createChatUI } from './chat/chat-ui.js?v=29';
 import { createDiffUI } from './editor/diff-ui.js?v=3';
 import { createEditor } from './editor/editor-ui.js';
 import { createWorkspaceUI } from './workspace/workspace-ui.js?v=18';
-import { createTaskUI } from './tasks/task-ui.js?v=19';
+import { createTaskUI } from './tasks/task-ui.js?v=20';
 
 const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
