@@ -1,6 +1,9 @@
 export function createDiffUI({ panel, send, getRoot }) {
+  const main = panel.closest('main');
+
   function show(changes) {
     panel.hidden = false;
+    main?.classList.add('diff-mode');
     panel.innerHTML = '<div class="diff-toolbar"><strong>Pending changes</strong><button data-action="approve">Accept all</button><button data-action="reject">Reject all</button></div><div class="diff-tabs"></div><pre class="diff-preview"></pre>';
     const tabs = panel.querySelector('.diff-tabs');
     const preview = panel.querySelector('.diff-preview');
@@ -32,6 +35,7 @@ export function createDiffUI({ panel, send, getRoot }) {
   function hide() {
     panel.hidden = true;
     panel.innerHTML = '';
+    main?.classList.remove('diff-mode');
   }
 
   return { show, hide };

@@ -91,6 +91,7 @@ function openWorkspace(root, notify = true) {
 
 function enterWorkspace(root) {
   taskUI.showWorkspace();
+  diffUI.hide();
   editorUI.setWorkspace(root);
   chatUI.setWorkspace(root);
   taskUI.render();

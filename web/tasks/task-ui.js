@@ -6,6 +6,7 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
   const taskById = new Map();
   const workspaces = new Set();
   const workspaceRoots = new Map();
+  const statusMeta = (status) => ({ running: ['运行中', 'running'], waiting_approval: ['待审批', 'waiting'], failed: ['失败', 'failed'], completed: ['已完成', 'completed'], idle: ['空闲', 'idle'] }[status] || [status || '空闲', 'idle']);
   function showDashboard() {
     panel.classList.add('visible');
     main?.classList.add('dashboard-mode');
@@ -42,8 +43,16 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
       const name = workspaceName(workspace);
       const heading = document.createElement('button');
       heading.className = 'workspace-card-header';
-      heading.textContent = `${name} · ${statuses.get(workspace) || 'idle'}`;
       heading.onclick = () => onWorkspace?.(workspaceRoots.get(workspace) || workspace);
+      const [headingLabel, headingClass] = statusMeta(statuses.get(workspace));
+      heading.textContent = '';
+      const headingName = document.createElement('span');
+      headingName.className = 'workspace-card-name';
+      headingName.textContent = name;
+      const headingStatus = document.createElement('span');
+      headingStatus.className = `status-badge status-${headingClass}`;
+      headingStatus.textContent = headingLabel;
+      heading.append(headingName, headingStatus);
       card.appendChild(heading);
       const latest = workspaceTasks[workspaceTasks.length - 1];
       const taskSummary = document.createElement('div');
@@ -67,7 +76,15 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
       card.open = task.status !== 'completed';
       const summary = document.createElement('summary');
       const runtime = statuses.get(task.workspace) || statuses.get(currentName);
-      summary.textContent = `${task.workspace ? workspaceName(task.workspace) + ' · ' : ''}${task.goal} · ${runtime || task.status}`;
+      const [summaryLabel, summaryClass] = statusMeta(runtime || task.status);
+      summary.textContent = '';
+      const summaryGoal = document.createElement('span');
+      summaryGoal.className = 'task-card-goal';
+      summaryGoal.textContent = task.goal;
+      const summaryStatus = document.createElement('span');
+      summaryStatus.className = `status-badge status-${summaryClass}`;
+      summaryStatus.textContent = summaryLabel;
+      summary.append(summaryGoal, summaryStatus);
       card.appendChild(summary);
       (task.plans || []).forEach((plan) => {
         const block = document.createElement('details');
@@ -79,8 +96,12 @@ export function createTaskUI({ panel, detailPanel, toggle, main, getRoot, onWork
         (plan.steps || []).forEach((step) => {
           const row = document.createElement('div');
           row.className = `plan-step ${step.status}`;
-          row.textContent = `${step.status === 'completed' ? '✓' : step.status === 'failed' ? '×' : '○'} ${step.title}`;
           block.appendChild(row);
+          const marker = document.createElement('span');
+          marker.className = 'plan-step-marker';
+          marker.textContent = step.status === 'completed' ? '✓' : step.status === 'failed' ? '×' : '•';
+          row.textContent = '';
+          row.append(marker, document.createTextNode(` ${step.title}`));
         });
         card.appendChild(block);
       });
