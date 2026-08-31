@@ -2,8 +2,7 @@ import os
 import subprocess
 import difflib
 from .workspace.path_utils import safe_path
-from .testing.preview_server import start as start_preview, stop as stop_preview
-from .testing.browser_runner import run as run_web_test
+from .testing.browser_tools import execute as execute_browser
 
 def prepare_write(root, path, content):
     target = safe_path(root, path)
@@ -37,12 +36,6 @@ def execute(name, arguments, root, approved=False):
     if tool in {'write_file', 'delete_file', 'run_command'} and not approved:
         return {'needs_approval': True, 'command': action.get('command') or action.get('path', ''), 'reason': '此操作可能修改工作区'}
     try:
-        if tool == 'start_preview':
-            return start_preview(root)
-        if tool == 'stop_preview':
-            return stop_preview(root)
-        if tool == 'run_web_test':
-            return run_web_test(action.get('url', 'http://127.0.0.1:8000/'), action.get('steps', []))
         if tool == 'read_file':
             with open(safe_path(root, action['path']), encoding='utf-8') as file:
                 return {'result': file.read()}
@@ -62,6 +55,6 @@ def execute(name, arguments, root, approved=False):
 
 
 async def execute_async(name, arguments, root):
-    if name == 'run_web_test':
-        return await run_web_test(arguments.get('url', 'http://127.0.0.1:8000/'), arguments.get('steps', []), arguments.get('_on_step'))
+    if name.startswith('browser_'):
+        return await execute_browser(name, arguments, root)
     return execute(name, arguments, root)

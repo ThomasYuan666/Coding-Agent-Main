@@ -10,9 +10,16 @@ TOOLS = [
 ]
 
 TOOLS.extend([
-    {'type': 'function', 'function': {'name': 'start_preview', 'description': '当工作区包含网页项目且需要查看运行效果时启动本地预览。', 'parameters': {'type': 'object', 'properties': {}}}},
-    {'type': 'function', 'function': {'name': 'stop_preview', 'description': '关闭当前工作区网页预览并停止本地服务。', 'parameters': {'type': 'object', 'properties': {}}}},
-    {'type': 'function', 'function': {'name': 'run_web_test', 'description': '使用浏览器自动执行网页测试步骤。根据网页代码动态生成 steps；测试完成后浏览器自动关闭。', 'parameters': {'type': 'object', 'properties': {'url': {'type': 'string', 'description': '网页预览地址'}, 'steps': {'type': 'array', 'items': {'type': 'object', 'properties': {'action': {'type': 'string', 'enum': ['open', 'go_back', 'go_forward', 'reload', 'click', 'press', 'type', 'wait', 'wait_until', 'read_state', 'assert_state', 'assert_visible', 'assert_text', 'read_console']}, 'condition': {'type': 'string', 'enum': ['selector_visible', 'text_contains', 'url_contains', 'state_equals', 'state_changed']}, 'selector': {'type': 'string'}, 'key': {'type': 'string'}, 'text': {'type': 'string'}, 'url': {'type': 'string'}, 'ms': {'type': 'integer'}, 'timeout': {'type': 'integer'}, 'expression': {'type': 'string'}, 'value': {}} , 'required': ['action']}}}, 'required': ['steps']}}},
+    {'type': 'function', 'function': {'name': 'browser_open', 'description': '在当前工作区浏览器会话中打开网页。', 'parameters': {'type': 'object', 'properties': {'url': {'type': 'string'}}, 'required': []}}},
+    {'type': 'function', 'function': {'name': 'browser_click', 'description': '点击网页中的元素。', 'parameters': {'type': 'object', 'properties': {'selector': {'type': 'string'}}, 'required': ['selector']}}},
+    {'type': 'function', 'function': {'name': 'browser_press', 'description': '向网页发送键盘按键。', 'parameters': {'type': 'object', 'properties': {'key': {'type': 'string'}}, 'required': ['key']}}},
+    {'type': 'function', 'function': {'name': 'browser_type', 'description': '向网页输入框填写文本。', 'parameters': {'type': 'object', 'properties': {'selector': {'type': 'string'}, 'text': {'type': 'string'}}, 'required': ['selector', 'text']}}},
+    {'type': 'function', 'function': {'name': 'browser_wait', 'description': '等待网页状态变化。', 'parameters': {'type': 'object', 'properties': {'ms': {'type': 'integer'}}, 'required': []}}},
+    {'type': 'function', 'function': {'name': 'browser_observe', 'description': '读取当前网页标题、文本和可选 JavaScript 状态。', 'parameters': {'type': 'object', 'properties': {'expression': {'type': 'string'}}, 'required': []}}},
+    {'type': 'function', 'function': {'name': 'browser_close', 'description': '关闭当前工作区的浏览器测试会话。', 'parameters': {'type': 'object', 'properties': {}}}},
+])
+
+TOOLS.extend([
 ])
 
 TOOLS.extend([

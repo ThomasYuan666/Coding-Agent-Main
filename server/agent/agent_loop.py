@@ -2,6 +2,8 @@ import json
 import asyncio
 from ..context.rollback import RollbackManager
 from ..tools import apply_write, execute, execute_async, prepare_write
+from ..testing.preview_server import stop as stop_preview
+from ..testing.browser_session import close as close_browser
 from ..context.context_manager import ContextManager
 from .task_manager import TaskManager
 from config.settings import CONTEXT_LIMIT
@@ -36,6 +38,7 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
         if not usage:
             raise RuntimeError("模型响应未返回 usage")
     except Exception as exc:
+        await close_browser(root)
         print(f"[agent] model error: {type(exc).__name__}: {exc!r}")
         await websocket.send_json({"type": "error", "content": f"模型调用失败：{exc}"})
         await websocket.send_json({"type": "end"})
@@ -43,6 +46,7 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
 
     calls = response.get("tool_calls", [])
     if not calls:
+        await close_browser(root)
         manager.add({
             "role": "assistant",
             "content": response.get("content", ""),
@@ -106,17 +110,12 @@ async def agent_turn(websocket, client, manager, root, turn_id, model, reasoning
         elif name in {"delete_file", "run_command"}:
             pending_items.append({"kind": "command", "call": call, "name": name, "args": args})
         else:
-            if name == 'run_web_test':
-                args['_on_step'] = lambda step: websocket.send_json({'type': 'test_step', 'workspace': root, **step})
+            if name.startswith('browser_'):
                 result = await execute_async(name, args, root)
-                args.pop('_on_step', None)
             else:
                 result = execute(name, args, root)
             manager.add({"role": "tool", "tool_call_id": call["id"], "content": result["result"]})
             await websocket.send_json({"type": "tool", "tool": name, "result": result["result"]})
-            if name == 'run_web_test':
-                execute('stop_preview', {}, root)
-
     if pending_items:
         pending = {"items": pending_items, "index": 0, "turn_id": turn_id, "model": model, "reasoning_effort": reasoning_effort}
         await _show_pending(websocket, root, pending_items[0])

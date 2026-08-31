@@ -7,6 +7,7 @@ from pathlib import Path
 from .agent_loop import agent_turn, cancel_pending, resolve_approval
 from ..context.conversation import ConversationManager
 from .task_manager import TaskManager
+from ..testing.browser_session import close as close_browser
 
 
 class WorkspaceSession:
@@ -91,6 +92,7 @@ class WorkspaceSession:
             except asyncio.CancelledError:
                 pass
         self.task = None
+        await close_browser(self.root)
         self.status = 'idle'
         await self.send({'type': 'stopped'})
 

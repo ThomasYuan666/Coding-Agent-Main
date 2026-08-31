@@ -18,12 +18,20 @@ def start(root):
         [sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1'],
         cwd=str(root_path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
-    _servers[str(root_path)] = process
+    _servers[str(root_path)] = {'process': process, 'url': f'http://127.0.0.1:{port}/'}
     url = f'http://127.0.0.1:{port}/'
     return {'result': f'预览服务已启动：{url}', 'preview_url': url, 'preview_status': 'running'}
 
+def ensure(root):
+    current = _servers.get(str(Path(root).resolve()))
+    if current and current['process'].poll() is None:
+        return {'result': f'Preview service is running: {current["url"]}', 'preview_url': current['url'], 'preview_status': 'running'}
+    return start(root)
+
+
 def stop(root):
-    process = _servers.pop(str(Path(root).resolve()), None)
+    current = _servers.pop(str(Path(root).resolve()), None)
+    process = current['process'] if current else None
     if process and process.poll() is None:
         process.terminate()
         try:
