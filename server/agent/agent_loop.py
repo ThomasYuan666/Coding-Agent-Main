@@ -2,7 +2,6 @@ import json
 import asyncio
 from ..context.rollback import RollbackManager
 from ..tools import apply_write, execute, execute_async, prepare_write
-from ..testing.preview_server import stop as stop_preview
 from ..testing.browser_session import close as close_browser
 from ..context.context_manager import ContextManager
 from .task_manager import TaskManager

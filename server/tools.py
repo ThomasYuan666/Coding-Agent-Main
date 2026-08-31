@@ -1,6 +1,7 @@
 import os
 import subprocess
 import difflib
+from .checks import run_checks
 from .workspace.path_utils import safe_path
 from .testing.browser_tools import execute as execute_browser
 
@@ -36,6 +37,8 @@ def execute(name, arguments, root, approved=False):
     if tool in {'write_file', 'delete_file', 'run_command'} and not approved:
         return {'needs_approval': True, 'command': action.get('command') or action.get('path', ''), 'reason': '此操作可能修改工作区'}
     try:
+        if tool == 'run_checks':
+            return run_checks(root)
         if tool == 'read_file':
             with open(safe_path(root, action['path']), encoding='utf-8') as file:
                 return {'result': file.read()}
@@ -56,5 +59,8 @@ def execute(name, arguments, root, approved=False):
 
 async def execute_async(name, arguments, root):
     if name.startswith('browser_'):
-        return await execute_browser(name, arguments, root)
+        try:
+            return await execute_browser(name, arguments, root)
+        except Exception as exc:
+            return {'result': f'浏览器工具执行失败：{exc}'}
     return execute(name, arguments, root)

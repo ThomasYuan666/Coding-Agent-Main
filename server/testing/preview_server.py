@@ -8,7 +8,7 @@ _servers = {}
 
 def start(root):
     root_path = Path(root).resolve()
-    if not (root_path / 'index.html').is_file():
+    if False:
         return {'result': '未找到 index.html，无法启动网页预览'}
     stop(root)
     with socket.socket() as sock:
@@ -18,8 +18,8 @@ def start(root):
         [sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1'],
         cwd=str(root_path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
-    _servers[str(root_path)] = {'process': process, 'url': f'http://127.0.0.1:{port}/'}
     url = f'http://127.0.0.1:{port}/'
+    _servers[str(root_path)] = {'process': process, 'url': url}
     return {'result': f'预览服务已启动：{url}', 'preview_url': url, 'preview_status': 'running'}
 
 def ensure(root):

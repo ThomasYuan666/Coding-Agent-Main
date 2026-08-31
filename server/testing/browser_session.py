@@ -9,19 +9,22 @@ class BrowserSession:
         self.playwright = None
         self.browser = None
         self.page = None
+        self.preview_url = None
+        self.preview_base_url = None
 
     async def start(self):
         if self.page and not self.page.is_closed():
             return self.page
         from playwright.async_api import async_playwright
         preview = ensure(self.root)
+        self.preview_url = preview['preview_url']
+        self.preview_base_url = self.preview_url
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(
             headless=False, slow_mo=300, args=['--window-size=1100,800']
         )
         context = await self.browser.new_context(viewport={'width': 1060, 'height': 700})
         self.page = await context.new_page()
-        self.page._preview_url = preview['preview_url']
         return self.page
 
     async def close(self):
@@ -30,6 +33,8 @@ class BrowserSession:
         if self.playwright:
             await self.playwright.stop()
         self.page = self.browser = self.playwright = None
+        self.preview_url = None
+        self.preview_base_url = None
         stop(self.root)
 
 
@@ -57,8 +62,3 @@ async def close(root):
         await session.close()
     else:
         stop(root)
-
-
-async def close_all():
-    for root in list(_sessions):
-        await close(root)

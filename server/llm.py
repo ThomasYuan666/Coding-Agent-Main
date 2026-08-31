@@ -3,6 +3,7 @@ import httpx
 from config.settings import DEFAULT_MODEL, MODEL_VISION
 
 TOOLS = [
+    {'type': 'function', 'function': {'name': 'run_checks', 'description': '代码修改后运行无副作用基础检查。不会安装依赖或修改配置；检查通过后再进行浏览器测试。', 'parameters': {'type': 'object', 'properties': {}}}},
     {'type': 'function', 'function': {'name': 'read_file', 'description': '读取当前工作区内的文本文件', 'parameters': {'type': 'object', 'properties': {'path': {'type': 'string'}}, 'required': ['path']}}},
     {'type': 'function', 'function': {'name': 'write_file', 'description': '创建或覆盖当前工作区内的文件', 'parameters': {'type': 'object', 'properties': {'path': {'type': 'string'}, 'content': {'type': 'string'}}, 'required': ['path', 'content']}}},
     {'type': 'function', 'function': {'name': 'delete_file', 'description': '删除当前工作区内的文件', 'parameters': {'type': 'object', 'properties': {'path': {'type': 'string'}}, 'required': ['path']}}},

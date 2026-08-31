@@ -1,3 +1,5 @@
+import json
+
 from .browser_session import get, close
 from .browser_observer import observe
 
@@ -9,8 +11,10 @@ async def execute(name, args, root):
     session = await get(root)
     page = session.page
     if name == 'browser_open':
-        value = args.get('url', '/')
-        url = value if value.startswith(('http://', 'https://')) else session.page._preview_url.rstrip('/') + '/' + value.lstrip('/')
+        value = args.get('url')
+        if not value or value.startswith('file://'):
+            return {'result': '请先读取工作区文件，并提供要打开的 HTML 相对路径，例如 /index.html。'}
+        url = value if value.startswith(('http://', 'https://')) else session.preview_base_url.rstrip('/') + '/' + value.lstrip('/')
         await page.goto(url, wait_until='domcontentloaded')
     elif name == 'browser_click':
         await page.locator(args['selector']).click()
@@ -28,4 +32,4 @@ async def execute(name, args, root):
 
 
 async def _result(page, expression=None):
-    return __import__('json').dumps(await observe(page, expression), ensure_ascii=False)
+    return json.dumps(await observe(page, expression), ensure_ascii=False)

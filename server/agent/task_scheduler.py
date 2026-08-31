@@ -68,7 +68,17 @@ class WorkspaceSession:
             if self.task is task:
                 self.task = None
             return
-        result = await task
+        try:
+            result = await task
+        except Exception as exc:
+            self.pending = None
+            self.task = None
+            self.status = 'failed'
+            await close_browser(self.root)
+            await self.send({'type': 'error', 'content': f'Agent 执行失败：{exc}'})
+            await self.send({'type': 'end'})
+            await self.send({'type': 'agent_status', 'status': self.status})
+            return
         if isinstance(result, dict) and result.get('items'):
             self.pending = result
             self.status = 'waiting_approval'
