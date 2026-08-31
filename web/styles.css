@@ -31,13 +31,14 @@ aside li.agent-failed::after { content: ' 失败'; color: var(--danger); font-si
 aside li.agent-completed::after { content: ' 已完成'; color: var(--success); font-size: 11px; }
 
 
-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--canvas); }
-#tasks-toggle { align-self: flex-end; margin: 10px 14px 2px; padding: 6px 11px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+main { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--canvas); }
+#tasks-toggle { position: absolute; top: 10px; right: 14px; z-index: 3; padding: 6px 11px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
 #tasks-toggle:hover { border-color: var(--accent); color: var(--accent); }
 #task-panel { display: none; flex: 1; overflow: auto; padding: 18px; background: var(--canvas); }
 #task-panel.visible { display: grid; }
-#workspace-task-panel { display: none; flex: 0 0 auto; max-height: 38%; overflow: auto; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+#workspace-task-panel { display: none; flex: 0 0 auto; max-height: 32%; overflow: auto; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
 main:not(.dashboard-mode) #workspace-task-panel { display: block; }
+main:not(.dashboard-mode) #workspace-task-panel { padding-right: 160px; }
 main.dashboard-mode #filename,
 main.dashboard-mode #editor,
 main.dashboard-mode #diff-panel,
@@ -49,7 +50,7 @@ main:not(.dashboard-mode) #task-panel { display: none; }
 #editor-tabs button { border: 0; border-right: 1px solid #3b3b3b; padding: 8px 12px; color: #bbb; background: #252526; cursor: pointer; white-space: nowrap; }
 #editor-tabs button.active { color: #fff; background: #1e1e1e; }
 main.dashboard-mode #tasks-toggle { display: none; }
-.task-card { margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: 0 1px 2px rgba(31,42,37,.04); }
+.task-card { margin-bottom: 7px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: 0 1px 2px rgba(31,42,37,.04); }
 .task-card summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; font-weight: 600; }
 .workspace-card { padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 2px 8px rgba(31,42,37,.06); transition: transform .18s ease, box-shadow .18s ease; }
 .workspace-card:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(31,42,37,.10); }
