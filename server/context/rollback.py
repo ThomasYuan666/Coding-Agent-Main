@@ -14,7 +14,13 @@ class RollbackManager:
 
     def begin(self, turn_id, history_length):
         records = [r for r in self.load() if r['turn_id'] != turn_id]
-        records.append({'turn_id': turn_id, 'history_length': history_length, 'files': []})
+        tasks_file = self.root / '.coding-agent' / 'tasks.json'
+        try:
+            tasks = json.loads(tasks_file.read_text(encoding='utf-8'))
+        except (FileNotFoundError, json.JSONDecodeError):
+            tasks = []
+        screenshots = [p.name for p in (self.root / '.coding-agent' / 'screenshots').glob('*.png')] if (self.root / '.coding-agent' / 'screenshots').exists() else []
+        records.append({'turn_id': turn_id, 'history_length': history_length, 'files': [], 'tasks': tasks, 'screenshots': screenshots})
         self._save(records[-3:])
 
     def record(self, turn_id, change):
@@ -34,6 +40,16 @@ class RollbackManager:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(item['content'], encoding='utf-8')
             elif target.exists(): target.unlink()
+        tasks_file = self.root / '.coding-agent' / 'tasks.json'
+        if 'tasks' in record:
+            tasks_file.parent.mkdir(parents=True, exist_ok=True)
+            tasks_file.write_text(json.dumps(record['tasks'], ensure_ascii=False, indent=2), encoding='utf-8')
+        keep = set(record.get('screenshots', []))
+        screenshot_dir = self.root / '.coding-agent' / 'screenshots'
+        if screenshot_dir.exists():
+            for path in screenshot_dir.glob('*.png'):
+                if path.name not in keep:
+                    path.unlink()
         return record['history_length']
 
     def _save(self, records):

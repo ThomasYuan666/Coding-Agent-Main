@@ -30,7 +30,7 @@ export function createEditor({ textarea, filename, tabs, getRoot }) {
     const content = editor.getValue(); state().files.set(activePath, content);
     fetch('/api/file', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ root: getRoot(), path: activePath, content }) });
   }
-  return { loadFile, setWorkspace, hasActive: () => Boolean(activePath) };
+  return { loadFile, setWorkspace, hasActive: () => Boolean(activePath), getActivePath: () => activePath };
 }
 function modeFor(path) {
   const ext = path.split('.').pop().toLowerCase();

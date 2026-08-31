@@ -1,7 +1,7 @@
 import { connect, send, onMessage } from './core/websocket.js';
 import { createChatUI } from './chat/chat-ui.js?v=31';
 import { createDiffUI } from './editor/diff-ui.js?v=3';
-import { createEditor } from './editor/editor-ui.js';
+import { createEditor } from './editor/editor-ui.js?v=2';
 import { createWorkspaceUI } from './workspace/workspace-ui.js?v=18';
 import { createTaskUI } from './tasks/task-ui.js?v=20';
 
@@ -62,10 +62,8 @@ onMessage((data) => {
   }
   if (data.type === 'files' && (!data.workspace || workspaceUI.isCurrent(data.workspace))) {
     workspaceUI.refresh(data.files);
-    if (!editorUI.hasActive()) {
-      const path = workspaceUI.firstFile();
-      if (path) send({ action: 'read', path });
-    }
+    const path = editorUI.getActivePath?.() || workspaceUI.firstFile();
+    if (path) send({ action: 'read', path });
   }
   if (currentEvent && data.type === 'diff') diffUI.show(data.files);
   if (currentEvent && data.type === 'diff_status') diffUI.hide();
