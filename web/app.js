@@ -3,7 +3,7 @@ import { createChatUI } from './chat/chat-ui.js';
 import { createDiffUI } from './editor/diff-ui.js?v=3';
 import { createEditor } from './editor/editor-ui.js';
 import { createWorkspaceUI } from './workspace/workspace-ui.js?v=18';
-import { createTaskUI } from './tasks/task-ui.js?v=18';
+import { createTaskUI } from './tasks/task-ui.js?v=19';
 
 const files = document.querySelector('#files');
 const messages = document.querySelector('#messages');
